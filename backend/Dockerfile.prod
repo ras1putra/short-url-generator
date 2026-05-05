@@ -1,0 +1,41 @@
+# Build the binary
+FROM golang:alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache git make
+
+# Download dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the statically linked binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o /app/bin/server ./cmd/server/main.go
+
+# Create a minimal production image
+FROM alpine:latest
+
+WORKDIR /app
+
+ENV ENV=production
+ENV GEOIP_DB_PATH=/app/GeoLite2-City.mmdb
+ENV GIN_MODE=release
+
+RUN adduser -D app && \
+    apk --no-cache add ca-certificates tzdata && \
+    chown app:app /app
+
+# Copy the binary from the builder stage
+COPY --from=builder --chown=app:app /app/bin/server /app/server
+COPY --from=builder --chown=app:app /app/GeoLite2-City.mmdb /app/GeoLite2-City.mmdb
+
+USER app
+
+# Expose the API port
+EXPOSE 8080
+
+# Command to run the application
+CMD ["/app/server"]

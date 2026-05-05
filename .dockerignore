@@ -1,0 +1,25 @@
+# ==============================
+# Backend
+# ==============================
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.md
+coverage*.out
+GeoLite2-*.mmdb
+tmp/
+bin/
+.air.toml
+
+# ==============================
+# Frontend
+# ==============================
+frontend/.git
+frontend/node_modules
+frontend/.next
+frontend/.env*
+frontend/test-results
+frontend/playwright-report
+frontend/coverage

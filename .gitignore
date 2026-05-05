@@ -1,0 +1,72 @@
+# ==============================
+# Backend (Go)
+# ==============================
+/backend/bin/
+/backend/tmp/
+/backend/*.exe
+/backend/*.exe~
+/backend/*.test
+/backend/*.out
+/backend/*.prof
+/backend/coverage*.out
+
+# ==============================
+# Backend environment & secrets
+# ==============================
+/backend/.env
+*.env
+!.env.example
+/backend/.gocache
+/backend/GeoLite2*.mmdb
+
+# ==============================
+# Backend tools
+# ==============================
+/backend/.air.toml
+
+# ==============================
+# Backend data files
+# ==============================
+/backend/GeoLite2-City.mmdb
+/backend/GeoLite2-*.mmdb
+
+# ==============================
+# Frontend (Next.js / Node)
+# ==============================
+/frontend/node_modules/
+/frontend/.pnp
+/frontend/.pnp.*
+/frontend/.next/
+/frontend/out/
+/frontend/coverage/
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/tsconfig.tsbuildinfo
+/frontend/next-env.d.ts
+
+# ==============================
+# Frontend environment
+# ==============================
+/frontend/.env*
+!/frontend/.env.example
+
+# ==============================
+# Docker & Infrastructure
+# ==============================
+docker-compose.override.yml
+
+# ==============================
+# IDE / OS
+# ==============================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ==============================
+# Logs
+# ==============================
+*.log

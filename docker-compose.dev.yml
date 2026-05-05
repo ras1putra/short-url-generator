@@ -1,0 +1,74 @@
+services:
+  db:
+    image: postgres:17-alpine
+    env_file:
+      - ./backend/.env
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.migrate
+    volumes:
+      - ./backend/db/migrations:/migrations
+    env_file:
+      - ./backend/.env
+    command: sh -c 'migrate -path=/migrations/ -database "postgres://$${DB_USER}:$${DB_PASSWORD}@db:$${DB_PORT}/$${DB_NAME}?sslmode=disable" up'
+    entrypoint: ""
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  redis_data:

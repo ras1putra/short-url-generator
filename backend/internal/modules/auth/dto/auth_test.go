@@ -1,0 +1,95 @@
+package dto
+
+import (
+	"testing"
+	"time"
+
+	"urlshortener/internal/repository"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMapUserToResponse(t *testing.T) {
+	now := time.Now()
+	id := uuid.New()
+
+	user := repository.User{
+		ID:        id,
+		Email:     "test@example.com",
+		Name:      "Test User",
+		Password:  "hashed-password",
+		CreatedAt: now,
+	}
+
+	resp := MapUserToResponse(user)
+
+	assert.Equal(t, id.String(), resp.ID)
+	assert.Equal(t, "test@example.com", resp.Email)
+	assert.Equal(t, "Test User", resp.Name)
+	assert.Equal(t, now, resp.CreatedAt)
+}
+
+func TestMapUserToResponse_FieldsMappedCorrectly(t *testing.T) {
+	now := time.Now()
+	id := uuid.New()
+
+	user := repository.User{
+		ID:        id,
+		Email:     "user@domain.org",
+		Name:      "Jane Doe",
+		Password:  "secret",
+		CreatedAt: now,
+	}
+
+	resp := MapUserToResponse(user)
+
+	assert.Equal(t, user.ID.String(), resp.ID, "ID should be converted to string")
+	assert.Equal(t, user.Email, resp.Email)
+	assert.Equal(t, user.Name, resp.Name)
+	assert.Equal(t, user.CreatedAt, resp.CreatedAt)
+}
+
+func TestNewAuthResponse(t *testing.T) {
+	now := time.Now()
+	id := uuid.New()
+
+	user := repository.User{
+		ID:        id,
+		Email:     "test@example.com",
+		Name:      "Test User",
+		Password:  "hashed-password",
+		CreatedAt: now,
+	}
+
+	resp := NewAuthResponse(user, "access-token-123", "refresh-token-456")
+
+	require.NotNil(t, resp)
+	assert.Equal(t, "access-token-123", resp.AccessToken)
+	assert.Equal(t, "refresh-token-456", resp.RefreshToken)
+	assert.Equal(t, id.String(), resp.User.ID)
+	assert.Equal(t, "test@example.com", resp.User.Email)
+	assert.Equal(t, "Test User", resp.User.Name)
+	assert.Equal(t, now, resp.User.CreatedAt)
+}
+
+func TestNewAuthResponse_NilFields(t *testing.T) {
+	id := uuid.New()
+	user := repository.User{
+		ID:        id,
+		Email:     "another@test.com",
+		Name:      "Another",
+		Password:  "hash",
+		CreatedAt: time.Now(),
+	}
+
+	resp := NewAuthResponse(user, "at", "rt")
+
+	require.NotNil(t, resp)
+	assert.Equal(t, "at", resp.AccessToken)
+	assert.Equal(t, "rt", resp.RefreshToken)
+	assert.Equal(t, id.String(), resp.User.ID)
+	assert.Equal(t, "another@test.com", resp.User.Email)
+	assert.Equal(t, "Another", resp.User.Name)
+}
