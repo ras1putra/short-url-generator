@@ -12,13 +12,15 @@ var ErrInvalidToken = errors.New("invalid or expired token")
 
 type Claims struct {
 	UserID    string `json:"user_id"`
+	Role      string `json:"role"`
 	TokenType string `json:"token_type"` // "access" or "refresh"
 	jwt.RegisteredClaims
 }
 
-func IssueToken(userID string, secret string, tokenType string, expiration time.Duration) (string, error) {
+func IssueToken(userID string, role string, secret string, tokenType string, expiration time.Duration) (string, error) {
 	claims := Claims{
 		UserID:    userID,
+		Role:      role,
 		TokenType: tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiration)),

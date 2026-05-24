@@ -121,18 +121,6 @@ func TestCreated(t *testing.T) {
 	assert.Equal(t, 201, resp.StatusCode)
 }
 
-func TestBadRequest(t *testing.T) {
-	app := fiber.New()
-	app.Get("/test", func(c *fiber.Ctx) error {
-		return BadRequest(c, "invalid", nil)
-	})
-
-	req := httptest.NewRequest("GET", "/test", nil)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	assert.Equal(t, 400, resp.StatusCode)
-}
-
 func TestUnauthorized(t *testing.T) {
 	app := fiber.New()
 	app.Get("/test", func(c *fiber.Ctx) error {

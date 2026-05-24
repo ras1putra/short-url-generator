@@ -68,10 +68,6 @@ func Created(c *fiber.Ctx, data interface{}, message string) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": message, "data": data})
 }
 
-func BadRequest(c *fiber.Ctx, message string, data interface{}) error {
-	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": message, "data": data})
-}
-
 func Unauthorized(c *fiber.Ctx, message string) error {
 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": message, "data": nil})
 }

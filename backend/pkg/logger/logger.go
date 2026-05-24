@@ -1,12 +1,15 @@
 package logger
 
 import (
+	"context"
 	"os"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+type loggerCtxKey struct{}
 
 func Init(env string) error {
 	cores := []zapcore.Core{
@@ -59,4 +62,15 @@ func WithUser(userID interface{}) *zap.Logger {
 
 func WithFields(fields ...zap.Field) *zap.Logger {
 	return zap.L().With(fields...)
+}
+
+func Ctx(ctx context.Context) *zap.Logger {
+	if log, ok := ctx.Value(loggerCtxKey{}).(*zap.Logger); ok {
+		return log
+	}
+	return zap.L()
+}
+
+func WithCtx(ctx context.Context, log *zap.Logger) context.Context {
+	return context.WithValue(ctx, loggerCtxKey{}, log)
 }

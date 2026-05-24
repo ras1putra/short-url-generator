@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"urlshortener/pkg/response"
 )
 
 var slugRegex = regexp.MustCompile(`^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$`)
@@ -17,15 +16,6 @@ func New() *validator.Validate {
 		return slugRegex.MatchString(fl.Field().String())
 	})
 	return v
-}
-
-func ValidateStruct(s interface{}) error {
-	validate := New()
-	err := validate.Struct(s)
-	if err != nil {
-		return response.NewAppError(400, FormatErrors(err))
-	}
-	return nil
 }
 
 func FormatErrors(err error) string {
