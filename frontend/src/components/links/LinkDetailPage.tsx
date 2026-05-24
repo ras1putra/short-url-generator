@@ -5,30 +5,19 @@ import LinkStatCharts from "@/components/links/LinkStatCharts";
 import { useLinkDetail, useUpdateLink } from "@/hooks/useLinks";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Copy, QrCode, Pencil, X, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Copy, QrCode, Pencil, X, Loader2, Link2, DollarSign } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { AxiosError } from "axios";
 import { toast } from "sonner";
+import type { ApiErrorResponse } from "@/types/api";
 import { Link as LinkType } from "@/types/link";
+import { editSchema, type EditForm } from "@/lib/validators";
+import { EXPIRY_UNIT_DAYS, EXPIRY_UNITS, ROUTE_LINKS } from "@/lib/constants";
+import { useCategories } from "@/hooks/useCategories";
 
-const editSchema = z.object({
-  custom_slug: z.string().regex(/^[a-zA-Z0-9-]*$/, "Only letters, numbers, and dashes allowed").min(3).max(20).optional().or(z.literal("")),
-  expires_value: z.number().min(1, "Minimum value is 1").optional().or(z.nan()),
-  expires_unit: z.enum(["minutes", "hours", "days"]).optional(),
-}).refine(
-  (data) => {
-    if (data.expires_value && !isNaN(data.expires_value) && !data.expires_unit) {
-      return false;
-    }
-    return true;
-  },
-  { message: "Please select a unit", path: ["expires_unit"] }
-);
-
-type EditForm = z.infer<typeof editSchema>;
 
 export default function LinkDetailClient({ slug }: { slug: string }) {
   const { data: link, isLoading, error } = useLinkDetail(slug);
@@ -43,10 +32,18 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
 
   if (isLoading) return <Loading height="h-64" />;
 
-  if (error || !link) {
+  if (error) {
     return (
       <div className="rounded-2xl bg-red-900/20 p-6 border border-red-900/50 text-red-300">
-        Failed to load link details. The link might not exist.
+        {(error as AxiosError<ApiErrorResponse>)?.response?.data?.message || "Failed to load link details"}
+      </div>
+    );
+  }
+
+  if (!link) {
+    return (
+      <div className="rounded-2xl bg-red-900/20 p-6 border border-red-900/50 text-red-300">
+        Link not found
       </div>
     );
   }
@@ -54,15 +51,20 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
   return (
     <div>
       <div className="mb-8">
-        <Link href="/dashboard" className="inline-flex items-center text-sm font-medium text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors mb-4">
+        <Link href={ROUTE_LINKS} className="inline-flex items-center text-sm font-medium text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors mb-4">
           <ArrowLeft className="mr-1 h-4 w-4" />
-          Back to Dashboard
+          Back to Links
         </Link>
-        <h1 className="text-3xl font-black tracking-tight text-white">Link Details</h1>
+        <div className="flex items-center gap-3 mb-2">
+          <div className="h-8 w-8 rounded-lg bg-[#6EE7B7]/10 flex items-center justify-center">
+            <Link2 size={16} className="text-[#6EE7B7]" />
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-white">Link Details</h1>
+        </div>
         <p className="mt-2 text-white/50 font-mono-dm text-sm">Detailed info for <span className="font-semibold text-[#6EE7B7]">/{slug}</span></p>
       </div>
 
-      <div className="rounded-2xl bg-white/[0.02] border border-white/[0.08] p-6 mb-8">
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-white/90">Info</h2>
           <button
@@ -124,6 +126,17 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
               View QR Code
             </a>
           </div>
+
+          <div>
+            <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Monetization</p>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${
+              link.is_monetized
+                ? "bg-[#6EE7B7]/15 text-[#6EE7B7] ring-1 ring-[#6EE7B7]/25"
+                : "bg-white/10 text-white/50 ring-1 ring-white/20"
+            }`}>
+              {link.is_monetized ? (link.allowed_categories?.length ? `Active (${link.allowed_categories.length} categories)` : "Active") : "Off"}
+            </span>
+          </div>
         </div>
 
         {isEditing && <EditSection link={link} slug={slug} onClose={() => setIsEditing(false)} />}
@@ -141,7 +154,16 @@ function EditSection({ link, slug, onClose }: { link: LinkType; slug: string; on
   const updateMutation = useUpdateLink(slug);
   const router = useRouter();
 
-  const [expiresUnit, setExpiresUnit] = useState<"minutes" | "hours" | "days">("days");
+  const [expiresUnit, setExpiresUnit] = useState<typeof EXPIRY_UNITS[number]>(EXPIRY_UNIT_DAYS);
+  const [editingMonetized, setEditingMonetized] = useState(link.is_monetized);
+  const [editingCategories, setEditingCategories] = useState<string[]>(link.allowed_categories || []);
+  const { data: categories } = useCategories();
+
+  const toggleCategory = (cat: string) => {
+    setEditingCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
 
   const {
     register,
@@ -151,23 +173,25 @@ function EditSection({ link, slug, onClose }: { link: LinkType; slug: string; on
     formState: { errors },
   } = useForm<EditForm>({
     resolver: zodResolver(editSchema),
-    defaultValues: { custom_slug: "", expires_value: NaN, expires_unit: undefined as "minutes" | "hours" | "days" | undefined },
+    defaultValues: { custom_slug: "", expires_value: NaN, expires_unit: undefined as typeof EXPIRY_UNITS[number] | undefined },
   });
 
   const onSubmit = (data: EditForm) => {
-    const payload: Record<string, string | number> = {};
+    const payload: Record<string, string | number | boolean | string[]> = {};
     if (data.custom_slug) payload.custom_slug = data.custom_slug;
     if (data.expires_value && !isNaN(data.expires_value)) {
       payload.expires_value = Number(data.expires_value);
-      payload.expires_unit = data.expires_unit || "days";
+      payload.expires_unit = data.expires_unit || EXPIRY_UNIT_DAYS;
     }
+    payload.is_monetized = editingMonetized;
+    payload.allowed_categories = editingCategories;
 
     if (Object.keys(payload).length === 0) {
       toast.error("No changes to save");
       return;
     }
 
-    updateMutation.mutate(payload, {
+    updateMutation.mutate(payload as Record<string, string | number>, {
       onSuccess: (response) => {
         toast.success("Link updated successfully");
         reset();
@@ -219,7 +243,7 @@ function EditSection({ link, slug, onClose }: { link: LinkType; slug: string; on
                   {...register("expires_value", { valueAsNumber: true })}
                 />
                 <div className="shrink-0 flex rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
-                  {(["days", "hours", "minutes"] as const).map((unit) => (
+                  {EXPIRY_UNITS.map((unit) => (
                     <button
                       key={unit}
                       type="button"
@@ -242,6 +266,60 @@ function EditSection({ link, slug, onClose }: { link: LinkType; slug: string; on
             )}
             <p className="mt-1 text-xs text-white/30">Leave empty to keep current</p>
           </div>
+        </div>
+
+        <div className="border-t border-white/[0.06] pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-xs font-bold text-[#6EE7B7] uppercase tracking-widest font-mono-dm flex items-center gap-1.5">
+              <DollarSign size={12} />
+              Monetization
+            </label>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={editingMonetized}
+              onClick={() => setEditingMonetized(!editingMonetized)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                editingMonetized ? "bg-[#6EE7B7]" : "bg-white/10"
+              }`}
+            >
+              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${
+                editingMonetized ? "translate-x-4" : "translate-x-0"
+              }`} />
+            </button>
+          </div>
+          <p className="text-xs text-white/40 mb-3 leading-relaxed">
+            Earn tokens when visitors see relevant ads before being redirected.
+          </p>
+          {editingMonetized && categories && categories.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold text-white/40 mb-2 uppercase tracking-widest font-mono-dm">
+                Allowed Ad Categories
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((cat) => {
+                  const isSelected = editingCategories.includes(cat.category);
+                  return (
+                    <button
+                      key={cat.category}
+                      type="button"
+                      onClick={() => toggleCategory(cat.category)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-[#6EE7B7]/15 text-[#6EE7B7] ring-1 ring-[#6EE7B7]/30"
+                          : "bg-white/[0.03] text-white/40 hover:text-white/70 ring-1 ring-white/10"
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {editingCategories.length === 0 && (
+                <p className="mt-1.5 text-xs text-white/30">Select at least one category to enable monetization.</p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3">

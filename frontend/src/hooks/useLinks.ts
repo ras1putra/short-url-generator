@@ -3,13 +3,13 @@ import { api } from "@/lib/api";
 import { AxiosError } from "axios";
 import { ApiResponse, ApiErrorResponse } from "@/types/api";
 import { Link, ListResponse } from "@/types/link";
-import { useState } from "react";
+import { API_LINKS } from "@/lib/constants";
 
 export function useLinksQuery(page: number = 1, perPage: number = 5) {
   return useQuery({
     queryKey: ["links", page, perPage],
     queryFn: async () => {
-      const response = await api.get<ApiResponse<ListResponse>>("/api/links", {
+      const response = await api.get<ApiResponse<ListResponse>>(API_LINKS, {
         params: { page, per_page: perPage },
       });
       return response.data.data;
@@ -21,11 +21,12 @@ export function useCreateLink() {
   const queryClient = useQueryClient();
   return useMutation<ApiResponse<Link>, AxiosError<ApiErrorResponse>, Record<string, string | number>>({
     mutationFn: async (payload) => {
-      const response = await api.post<ApiResponse<Link>>("/api/links", payload);
+      const response = await api.post<ApiResponse<Link>>(API_LINKS, payload);
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["links"] });
+      queryClient.invalidateQueries({ queryKey: ["aggregate-stats"] });
     },
   });
 }
@@ -34,7 +35,7 @@ export function useLinkDetail(slug: string) {
   return useQuery({
     queryKey: ["link", slug],
     queryFn: async () => {
-      const response = await api.get<ApiResponse<Link>>(`/api/links/${slug}`);
+      const response = await api.get<ApiResponse<Link>>(`${API_LINKS}/${slug}`);
       return response.data.data;
     },
     enabled: !!slug,
@@ -43,9 +44,9 @@ export function useLinkDetail(slug: string) {
 
 export function useUpdateLink(slug: string) {
   const queryClient = useQueryClient();
-  return useMutation<ApiResponse<Link>, AxiosError<ApiErrorResponse>, { custom_slug?: string; expires_value?: number; expires_unit?: string }>({
+  return useMutation<ApiResponse<Link>, AxiosError<ApiErrorResponse>, Record<string, string | number | boolean | string[]>>({
     mutationFn: async (data) => {
-      const response = await api.patch<ApiResponse<Link>>(`/api/links/${slug}`, data);
+      const response = await api.patch<ApiResponse<Link>>(`${API_LINKS}/${slug}`, data);
       return response.data;
     },
     onSuccess: () => {
@@ -59,28 +60,11 @@ export function useDeleteLink() {
   const queryClient = useQueryClient();
   return useMutation<void, AxiosError<ApiErrorResponse>, string>({
     mutationFn: async (slug: string) => {
-      await api.delete(`/api/links/${slug}`);
+      await api.delete(`${API_LINKS}/${slug}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["links"] });
+      queryClient.invalidateQueries({ queryKey: ["aggregate-stats"] });
     },
   });
-}
-
-export function useLinkActions() {
-  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
-  const deleteMutation = useDeleteLink();
-
-  const copyToClipboard = (url: string, slug: string) => {
-    navigator.clipboard.writeText(url);
-    setCopiedSlug(slug);
-    setTimeout(() => setCopiedSlug(null), 2000);
-  };
-
-  return {
-    copiedSlug,
-    copyToClipboard,
-    deleteLink: deleteMutation.mutate,
-    isDeleting: deleteMutation.isPending,
-  };
 }

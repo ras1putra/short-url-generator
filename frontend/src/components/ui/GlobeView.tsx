@@ -146,10 +146,7 @@ export default function GlobeView({ points, height = 420 }: GlobeViewProps) {
         pointLat="lat"
         pointLng="lng"
         pointAltitude={0.018}
-        pointRadius={((obj: object) => {
-          const point = obj as typeof customPointsData[number];
-          return point.size;
-        }) as unknown as number}
+        pointRadius={((obj: object) => (obj as (typeof customPointsData)[number]).size) as unknown as number}
         pointColor={() => "#6EE7B7"}
         pointsMerge={true}
         arcsData={arcsData}

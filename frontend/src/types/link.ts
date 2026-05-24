@@ -6,6 +6,8 @@ export interface Link {
   clicks: number;
   created_at: string;
   expires_at: string | null;
+  is_monetized: boolean;
+  allowed_categories: string[];
 }
 
 export interface ListResponse {
