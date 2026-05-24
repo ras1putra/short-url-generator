@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"urlshortener/pkg/logger"
 	"urlshortener/pkg/response"
 )
 
@@ -19,6 +20,13 @@ func RequestID() fiber.Handler {
 		}
 		c.Set("X-Request-ID", id)
 		c.Locals("request_id", id)
+
+		// pre-populated with request_id
+		reqLogger := zap.L().With(zap.String("request_id", id))
+
+		ctx := logger.WithCtx(c.UserContext(), reqLogger)
+		c.SetUserContext(ctx)
+
 		return c.Next()
 	}
 }

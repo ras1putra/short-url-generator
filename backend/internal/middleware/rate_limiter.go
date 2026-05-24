@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"urlshortener/internal/cache"
+	"urlshortener/pkg/constants"
 	"urlshortener/pkg/response"
 
 	"github.com/gofiber/fiber/v2"
@@ -15,7 +16,7 @@ func RateLimiter(redis cache.Cacher, limit int) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ip := c.IP()
 		now := time.Now().Unix()
-		windowKey := fmt.Sprintf("rl:%s:%d", ip, now/60)
+		windowKey := fmt.Sprintf("%s%s:%d", constants.RedisPrefixRateLimit, ip, now/60)
 
 		count, err := redis.RateLimitIncrement(c.Context(), windowKey, 2*time.Minute)
 		if err != nil {

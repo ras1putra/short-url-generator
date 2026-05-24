@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"log"
+	"math/big"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/oschwald/geoip2-golang"
@@ -16,10 +18,18 @@ import (
 	"urlshortener/internal/cache"
 	"urlshortener/internal/config"
 	"urlshortener/internal/middleware"
+	"urlshortener/internal/modules/ads"
 	"urlshortener/internal/modules/auth"
+	configmodule "urlshortener/internal/modules/config"
 	"urlshortener/internal/modules/links"
+	"urlshortener/internal/modules/media"
 	"urlshortener/internal/modules/redirect"
+	walletmodule "urlshortener/internal/modules/wallet"
+	web3module "urlshortener/internal/modules/web3"
 	"urlshortener/internal/repository"
+	"urlshortener/internal/storage"
+	web3client "urlshortener/internal/web3"
+	"urlshortener/pkg/constants"
 	customlogger "urlshortener/pkg/logger"
 	"urlshortener/pkg/response"
 )
@@ -51,11 +61,14 @@ func main() {
 
 	queries := repository.New(db)
 
-	authService := auth.NewAuthService(queries, redisClient, cfg)
+	authService := auth.NewAuthService(db, queries, redisClient, cfg)
 	urlService := links.NewURLService(queries, redisClient, cfg)
 	analyticsWorker := analytics.NewAnalyticsWorker(queries, 1000)
 
-	go urlService.StartExpiryCleaner(context.Background())
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
+
+	go urlService.StartExpiryCleaner(ctx)
 
 	var geoDB *geoip2.Reader
 	if cfg.GeoIPDBPath != "" {
@@ -70,11 +83,56 @@ func main() {
 
 	authHandler := auth.NewAuthHandler(authService, cfg)
 	linksHandler := links.NewLinksHandler(urlService, cfg)
-	redirectHandler := redirect.NewRedirectHandler(urlService, analyticsWorker, geoDB)
+	redirectSvc := redirect.NewRedirectService(urlService, queries, analyticsWorker, geoDB, cfg, db, redisClient.Raw())
+	redirectHandler := redirect.NewRedirectHandler(redirectSvc)
+
+	withdrawerAddr := common.HexToAddress(cfg.ContractWithdrawer)
+	withdrawerSvc, err := web3client.NewWithdrawerService(cfg.FaucetSignerKey, big.NewInt(int64(cfg.ChainID)), withdrawerAddr, cfg.NodeRPCURL)
+	if err != nil {
+		zap.L().Fatal("Failed to initialize withdrawer service", zap.Error(err))
+	}
+
+	walletSvc := walletmodule.NewWalletService(queries, db, withdrawerSvc)
+	walletHandler := walletmodule.NewWalletHandler(walletSvc)
+
+	adSvc := ads.NewAdService(db, queries)
+	adHandler := ads.NewAdHandler(adSvc)
+
+	s3Client, err := storage.NewS3Client(cfg)
+	if err != nil {
+		zap.L().Fatal("Failed to initialize S3 client", zap.Error(err))
+	}
+
+	if err := storage.EnsureBucket(ctx, s3Client, cfg); err != nil {
+		zap.L().Fatal("Failed to ensure S3 bucket", zap.Error(err))
+	}
+
+	mediaSvc := media.NewMediaService(s3Client, cfg.S3Bucket, cfg.S3PublicURL)
+	mediaHandler := media.NewMediaHandler(mediaSvc)
+	media.StartOrphanCleaner(ctx, db, s3Client, cfg.S3Bucket)
+
+	ethClient := web3client.NewETHClient(cfg, redisClient.Raw())
+
+	faucetAddr := common.HexToAddress(cfg.ContractFaucet)
+	faucetSvc, err := web3client.NewFaucetService(cfg.FaucetSignerKey, big.NewInt(int64(cfg.ChainID)), faucetAddr, redisClient.Raw(), cfg.NodeRPCURL)
+	if err != nil {
+		zap.L().Fatal("Failed to initialize faucet service", zap.Error(err))
+	}
+
+	depositHandler := web3module.NewDepositHandlerImpl(db, queries)
+	depositListener := web3client.NewListener(ethClient, cfg.ContractPayment, depositHandler, cfg.IsDev())
+	web3Svc := web3module.NewWeb3Service(queries, ethClient, faucetSvc)
+	web3Handler := web3module.NewWeb3Handler(web3Svc, cfg.IsDev())
+
+	configHandler := configmodule.NewHandler(cfg)
+
+	go depositListener.Start(ctx)
+	go faucetSvc.Start(ctx)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: response.ErrorHandler,
 		AppName:      "URL Shortener API",
+		BodyLimit:    constants.MaxVideoSize,
 	})
 
 	app.Use(cors.New(cors.Config{
@@ -91,20 +149,53 @@ func main() {
 	})
 
 	app.Get("/:slug", middleware.RateLimiter(redisClient, cfg.RateLimitRedirect), redirectHandler.Redirect)
+	app.Get("/api/r/:slug/click/:adID", redirectHandler.AdClick)
+	app.Get("/api/r/:slug/skip/:adID", redirectHandler.AdSkip)
+	app.Post("/api/r/:slug/complete", redirectHandler.AdCompleteFlow)
+	app.Get("/api/r/:slug/complete/:adID", redirectHandler.AdComplete)
 	app.Get("/api/links/:slug/qr", linksHandler.QRCode)
 
 	api := app.Group("/api")
+
+	api.Get("/config", configHandler.GetConfig)
+	api.Get("/categories", adHandler.ListCategories)
+	api.Get("/ads/types", adHandler.ListAdTypes)
 
 	authGroup := api.Group("/auth")
 	authGroup.Post("/register", authHandler.Register)
 	authGroup.Post("/login", authHandler.Login)
 	authGroup.Post("/refresh", authHandler.Refresh)
 
-	protectedAuthGroup := authGroup.Group("/", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient))
+	protectedAuthGroup := authGroup.Group("/", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries))
 	protectedAuthGroup.Post("/logout", authHandler.Logout)
+	protectedAuthGroup.Post("/upgrade", authHandler.UpgradeToAdvertiser)
+
+	walletGroup := api.Group("/wallet", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries))
+	walletGroup.Get("", walletHandler.GetWallet)
+	walletGroup.Post("/withdraw", walletHandler.RequestWithdraw)
+
+	faucetGroup := api.Group("/faucet", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries))
+	faucetGroup.Post("/claim", middleware.RateLimiter(redisClient, cfg.RateLimitCreate), web3Handler.ClaimFaucet)
+	faucetGroup.Post("/confirm", middleware.RateLimiter(redisClient, cfg.RateLimitCreate), web3Handler.ConfirmFaucet)
+	faucetGroup.Post("/dev-eth", middleware.RateLimiter(redisClient, cfg.RateLimitCreate), web3Handler.ClaimDevETH)
+	faucetGroup.Get("/status", web3Handler.DepositStatus)
+	faucetGroup.Get("/history", web3Handler.GetFaucetHistory)
+
+	adsGroup := api.Group("/ads", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), middleware.RequireRole(constants.RoleAdvertiser, constants.RoleAdmin))
+	adsGroup.Post("/", adHandler.Create)
+	adsGroup.Get("/", adHandler.List)
+	adsGroup.Get("/:id", adHandler.GetByID)
+	adsGroup.Patch("/:id", adHandler.Update)
+	adsGroup.Delete("/:id", adHandler.Delete)
+	adsGroup.Get("/:id/stats", adHandler.GetStats)
+	adsGroup.Post("/:id/topup", adHandler.TopUp)
+
+	mediaGroup := api.Group("/media", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), middleware.RequireRole(constants.RoleAdvertiser, constants.RoleAdmin))
+	mediaGroup.Post("/upload", mediaHandler.Upload)
+	mediaGroup.Post("/crop-video", mediaHandler.CropVideo)
 
 	linksGroup := api.Group("/links")
-	linksGroup.Use(middleware.JWTAuth(cfg.JWTAccessSecret, redisClient))
+	linksGroup.Use(middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries))
 	linksGroup.Post("/", middleware.RateLimiter(redisClient, cfg.RateLimitCreate), linksHandler.Create)
 	linksGroup.Get("/", linksHandler.List)
 	linksGroup.Get("/stats/aggregate", linksHandler.AggregateStats)
@@ -126,6 +217,13 @@ func main() {
 	<-quit
 
 	zap.L().Info("Gracefully shutting down server...")
+
+	depositListener.Stop()
+	faucetSvc.Stop()
+	faucetSvc.Close()
+	withdrawerSvc.Close()
+	stop()
+
 	if err := app.Shutdown(); err != nil {
 		zap.L().Error("Server forced to shutdown", zap.Error(err))
 	}
