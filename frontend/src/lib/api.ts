@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { API_AUTH_REFRESH, ROUTE_LOGIN } from './constants';
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '',
@@ -25,7 +26,7 @@ api.interceptors.response.use(
       try {
         if (!refreshPromise) {
           refreshPromise = api
-            .post('/api/auth/refresh')
+            .post(API_AUTH_REFRESH)
             .then(() => {})
             .finally(() => {
               refreshPromise = null;
@@ -36,7 +37,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch {
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          window.location.href = ROUTE_LOGIN;
         }
       }
     }
