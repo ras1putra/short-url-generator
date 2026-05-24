@@ -1,25 +1,31 @@
-import CreateLinkForm from "@/components/links/CreateLinkForm";
-import LinkTable from "@/components/links/LinkTable";
-import DashboardGlobe from "@/components/links/DashboardGlobe";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useUserStore } from "@/store/useUserStore";
+import { Loader2 } from "lucide-react";
+import { ROLE_ADVERTISER, ROLE_ADMIN, ROUTE_CAMPAIGNS, ROUTE_ADMIN_DASHBOARD, ROUTE_LINKS } from "@/lib/constants";
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const user = useUserStore((state) => state.user);
+
+  useEffect(() => {
+    if (!user) return;
+
+    if (user.role === ROLE_ADVERTISER) {
+      router.replace(ROUTE_CAMPAIGNS);
+    } else if (user.role === ROLE_ADMIN) {
+      router.replace(ROUTE_ADMIN_DASHBOARD);
+    } else {
+      router.replace(ROUTE_LINKS);
+    }
+  }, [user, router]);
+
+
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-black tracking-tight text-white">Dashboard</h1>
-        <p className="mt-2 text-white/50 font-mono-dm text-sm">{"// Create, manage, and track your shortened URLs"}</p>
-      </div>
-
-      <DashboardGlobe />
-
-      <div className="mt-8">
-        <CreateLinkForm />
-      </div>
-
-      <div className="mt-12">
-        <h2 className="text-xl font-bold text-white/90 mb-6">Your Links</h2>
-        <LinkTable />
-      </div>
+    <div className="flex items-center justify-center py-32">
+      <Loader2 className="animate-spin h-8 w-8 text-white/30" />
     </div>
   );
 }

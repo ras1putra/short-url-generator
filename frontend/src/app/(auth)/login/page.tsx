@@ -6,6 +6,7 @@ import { z } from "zod";
 import { useLogin } from "@/hooks/useAuth";
 import { loginSchema } from "@/lib/validators";
 import Link from "next/link";
+import { ROUTE_REGISTER } from "@/lib/constants";
 import { useState } from "react";
 import { Loader2, Link2, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
@@ -99,7 +100,7 @@ export default function LoginPage() {
         <div className="bg-white/[0.02] px-8 py-5 border-t border-white/[0.05]">
           <p className="text-center text-sm text-white/40">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="font-bold text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors">
+            <Link href={ROUTE_REGISTER} className="font-bold text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors">
               Sign up
             </Link>
           </p>

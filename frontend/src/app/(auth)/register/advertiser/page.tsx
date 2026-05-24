@@ -3,30 +3,32 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useRegister } from "@/hooks/useAuth";
-import { registerSchema } from "@/lib/validators";
+import { useRegisterAdvertiser } from "@/hooks/useAuth";
+import { advertiserRegisterSchema } from "@/lib/validators";
+import { ROLE_ADVERTISER, ROUTE_LOGIN, ROUTE_REGISTER } from "@/lib/constants";
 import Link from "next/link";
-import { ROUTE_LOGIN, ROUTE_REGISTER_ADVERTISER } from "@/lib/constants";
+
 import { useState } from "react";
 import { Loader2, Link2, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
-type RegisterForm = z.infer<typeof registerSchema>;
+type AdvertiserRegisterForm = z.infer<typeof advertiserRegisterSchema>;
 
-export default function RegisterPage() {
+export default function AdvertiserRegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const registerMutation = useRegister();
+  const registerMutation = useRegisterAdvertiser();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
+  } = useForm<AdvertiserRegisterForm>({
+    resolver: zodResolver(advertiserRegisterSchema),
+    defaultValues: { role: ROLE_ADVERTISER },
   });
 
-  const onSubmit = (data: RegisterForm) => {
+  const onSubmit = (data: AdvertiserRegisterForm) => {
     registerMutation.mutate(data, {
       onError: (error) => {
         toast.error(error.response?.data?.message || "Registration failed. Please try again.");
@@ -45,8 +47,8 @@ export default function RegisterPage() {
             <span className="text-xl font-bold text-white tracking-tight">go-short</span>
           </div>
 
-          <h2 className="text-4xl font-black tracking-tight text-white mb-2">CREATE ACCOUNT.</h2>
-          <p className="text-sm text-white/40 mb-10 font-mono-dm uppercase tracking-wider">{"// Join the speed of redirects"}</p>
+          <h2 className="text-4xl font-black tracking-tight text-white mb-2">ADVERTISER SIGNUP.</h2>
+          <p className="text-sm text-white/40 mb-10 font-mono-dm uppercase tracking-wider">{"// Start your ad campaigns today"}</p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
@@ -123,13 +125,15 @@ export default function RegisterPage() {
               {errors.confirmPassword && <p className="mt-1 text-xs text-red-400 font-medium">{errors.confirmPassword.message}</p>}
             </div>
 
+            <input type="hidden" {...register("role")} />
+
             <button
               type="submit"
               disabled={registerMutation.isPending}
               className="btn-primary cursor-pointer flex w-full justify-center items-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {registerMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : (
-                <>Sign up <ArrowRight size={18} /></>
+                <>Create advertiser account <ArrowRight size={18} /></>
               )}
             </button>
           </form>
@@ -143,8 +147,8 @@ export default function RegisterPage() {
             </Link>
           </p>
           <p className="text-center text-sm text-white/40 mt-2">
-            Want an advertiser account?{" "}
-            <Link href={ROUTE_REGISTER_ADVERTISER} className="font-bold text-white/60 hover:text-white transition-colors">
+            Want a regular account?{" "}
+            <Link href={ROUTE_REGISTER} className="font-bold text-white/60 hover:text-white transition-colors">
               Sign up here
             </Link>
           </p>
