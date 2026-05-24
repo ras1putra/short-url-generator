@@ -5,7 +5,6 @@
 /backend/tmp/
 /backend/*.exe
 /backend/*.exe~
-/backend/*.test
 /backend/*.out
 /backend/*.prof
 /backend/coverage*.out
@@ -14,6 +13,7 @@
 # Backend environment & secrets
 # ==============================
 /backend/.env
+/backend/garage.toml
 *.env
 !.env.example
 /backend/.gocache
@@ -22,7 +22,6 @@
 # ==============================
 # Backend tools
 # ==============================
-/backend/.air.toml
 
 # ==============================
 # Backend data files
@@ -39,7 +38,6 @@
 /frontend/.next/
 /frontend/out/
 /frontend/coverage/
-/frontend/test-results/
 /frontend/playwright-report/
 /frontend/tsconfig.tsbuildinfo
 /frontend/next-env.d.ts
@@ -70,3 +68,12 @@ Thumbs.db
 # Logs
 # ==============================
 *.log
+
+# ==============================
+# Web3 (Hardhat)
+# ==============================
+/web3-token/node_modules/
+/web3-token/artifacts/
+/web3-token/cache/
+/web3-token/typechain-types/
+/web3-token/.env
