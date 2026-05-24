@@ -11,12 +11,28 @@ import (
 )
 
 type Querier interface {
+	CountFaucetClaims(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountFaucetClaimsToday(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountURLsByUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	CreateAd(ctx context.Context, arg CreateAdParams) (Ad, error)
+	CreateAdEvent(ctx context.Context, arg CreateAdEventParams) (AdEvent, error)
+	CreateFaucetClaim(ctx context.Context, arg CreateFaucetClaimParams) (FaucetClaim, error)
+	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
 	CreateURL(ctx context.Context, arg CreateURLParams) (Url, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	CreateWallet(ctx context.Context, arg CreateWalletParams) error
+	DeductAdBudget(ctx context.Context, arg DeductAdBudgetParams) error
 	DeleteExpiredURLs(ctx context.Context) error
 	DeleteURL(ctx context.Context, arg DeleteURLParams) error
+	GetActiveAds(ctx context.Context) ([]Ad, error)
+	GetActiveAdsByCategory(ctx context.Context, dollar_1 []string) ([]Ad, error)
+	GetAdByID(ctx context.Context, id uuid.UUID) (Ad, error)
+	GetAdEventStats(ctx context.Context, adID uuid.UUID) (GetAdEventStatsRow, error)
 	GetAggregateStatsByUser(ctx context.Context, userID uuid.UUID) ([]GetAggregateStatsByUserRow, error)
+	GetCPMByAdType(ctx context.Context, adType string) (string, error)
+	GetCategoryMultiplier(ctx context.Context, category string) (string, error)
+	GetFaucetClaimByUser(ctx context.Context, arg GetFaucetClaimByUserParams) ([]FaucetClaim, error)
+	GetReferencedMediaURLs(ctx context.Context) ([]string, error)
 	GetStatsBySlug(ctx context.Context, slug string) ([]GetStatsBySlugRow, error)
 	GetTotalClicksBySlug(ctx context.Context, slug string) (int64, error)
 	GetTotalClicksByUser(ctx context.Context, userID uuid.UUID) (int64, error)
@@ -25,10 +41,19 @@ type Querier interface {
 	GetUniqueClicksByUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	GetWalletByUserID(ctx context.Context, userID uuid.UUID) (Wallet, error)
+	ListAdCategories(ctx context.Context) ([]AdCategory, error)
+	ListAdTypes(ctx context.Context) ([]ListAdTypesRow, error)
+	ListAdsByAdvertiser(ctx context.Context, advertiserID uuid.UUID) ([]Ad, error)
+	ListTransactionsByUser(ctx context.Context, arg ListTransactionsByUserParams) ([]Transaction, error)
 	ListURLsByUser(ctx context.Context, userID uuid.UUID) ([]Url, error)
 	ListURLsByUserPaginated(ctx context.Context, arg ListURLsByUserPaginatedParams) ([]Url, error)
 	SaveClick(ctx context.Context, arg SaveClickParams) (Click, error)
+	UpdateAd(ctx context.Context, arg UpdateAdParams) (Ad, error)
+	UpdateAdStatus(ctx context.Context, arg UpdateAdStatusParams) error
 	UpdateURL(ctx context.Context, arg UpdateURLParams) (Url, error)
+	UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error)
+	UpdateWalletBalance(ctx context.Context, arg UpdateWalletBalanceParams) (Wallet, error)
 }
 
 var _ Querier = (*Queries)(nil)

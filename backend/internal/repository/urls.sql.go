@@ -10,6 +10,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const countURLsByUser = `-- name: CountURLsByUser :one
@@ -25,19 +26,21 @@ func (q *Queries) CountURLsByUser(ctx context.Context, userID uuid.UUID) (int64,
 
 const createURL = `-- name: CreateURL :one
 INSERT INTO urls (
-  user_id, slug, original, custom, expires_at
+  user_id, slug, original, custom, expires_at, is_monetized, allowed_categories
 ) VALUES (
-  $1, $2, $3, $4, $5
+  $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING id, user_id, slug, original, custom, expires_at, created_at, updated_at
+RETURNING id, user_id, slug, original, custom, expires_at, created_at, updated_at, is_monetized, allowed_categories
 `
 
 type CreateURLParams struct {
-	UserID    uuid.UUID    `json:"user_id"`
-	Slug      string       `json:"slug"`
-	Original  string       `json:"original"`
-	Custom    bool         `json:"custom"`
-	ExpiresAt sql.NullTime `json:"expires_at"`
+	UserID            uuid.UUID    `json:"user_id"`
+	Slug              string       `json:"slug"`
+	Original          string       `json:"original"`
+	Custom            bool         `json:"custom"`
+	ExpiresAt         sql.NullTime `json:"expires_at"`
+	IsMonetized       bool         `json:"is_monetized"`
+	AllowedCategories []string     `json:"allowed_categories"`
 }
 
 func (q *Queries) CreateURL(ctx context.Context, arg CreateURLParams) (Url, error) {
@@ -47,6 +50,8 @@ func (q *Queries) CreateURL(ctx context.Context, arg CreateURLParams) (Url, erro
 		arg.Original,
 		arg.Custom,
 		arg.ExpiresAt,
+		arg.IsMonetized,
+		pq.Array(arg.AllowedCategories),
 	)
 	var i Url
 	err := row.Scan(
@@ -58,6 +63,8 @@ func (q *Queries) CreateURL(ctx context.Context, arg CreateURLParams) (Url, erro
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsMonetized,
+		pq.Array(&i.AllowedCategories),
 	)
 	return i, err
 }
@@ -88,7 +95,7 @@ func (q *Queries) DeleteURL(ctx context.Context, arg DeleteURLParams) error {
 }
 
 const getURLBySlug = `-- name: GetURLBySlug :one
-SELECT id, user_id, slug, original, custom, expires_at, created_at, updated_at FROM urls
+SELECT id, user_id, slug, original, custom, expires_at, created_at, updated_at, is_monetized, allowed_categories FROM urls
 WHERE slug = $1 LIMIT 1
 `
 
@@ -104,12 +111,14 @@ func (q *Queries) GetURLBySlug(ctx context.Context, slug string) (Url, error) {
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsMonetized,
+		pq.Array(&i.AllowedCategories),
 	)
 	return i, err
 }
 
 const listURLsByUser = `-- name: ListURLsByUser :many
-SELECT id, user_id, slug, original, custom, expires_at, created_at, updated_at FROM urls
+SELECT id, user_id, slug, original, custom, expires_at, created_at, updated_at, is_monetized, allowed_categories FROM urls
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -132,6 +141,8 @@ func (q *Queries) ListURLsByUser(ctx context.Context, userID uuid.UUID) ([]Url, 
 			&i.ExpiresAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsMonetized,
+			pq.Array(&i.AllowedCategories),
 		); err != nil {
 			return nil, err
 		}
@@ -147,7 +158,7 @@ func (q *Queries) ListURLsByUser(ctx context.Context, userID uuid.UUID) ([]Url, 
 }
 
 const listURLsByUserPaginated = `-- name: ListURLsByUserPaginated :many
-SELECT id, user_id, slug, original, custom, expires_at, created_at, updated_at FROM urls
+SELECT id, user_id, slug, original, custom, expires_at, created_at, updated_at, is_monetized, allowed_categories FROM urls
 WHERE user_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -177,6 +188,8 @@ func (q *Queries) ListURLsByUserPaginated(ctx context.Context, arg ListURLsByUse
 			&i.ExpiresAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsMonetized,
+			pq.Array(&i.AllowedCategories),
 		); err != nil {
 			return nil, err
 		}
@@ -193,16 +206,18 @@ func (q *Queries) ListURLsByUserPaginated(ctx context.Context, arg ListURLsByUse
 
 const updateURL = `-- name: UpdateURL :one
 UPDATE urls
-SET slug = $2, expires_at = $3, updated_at = NOW()
+SET slug = $2, expires_at = $3, is_monetized = $5, allowed_categories = $6, updated_at = NOW()
 WHERE id = $1 AND user_id = $4
-RETURNING id, user_id, slug, original, custom, expires_at, created_at, updated_at
+RETURNING id, user_id, slug, original, custom, expires_at, created_at, updated_at, is_monetized, allowed_categories
 `
 
 type UpdateURLParams struct {
-	ID        uuid.UUID    `json:"id"`
-	Slug      string       `json:"slug"`
-	ExpiresAt sql.NullTime `json:"expires_at"`
-	UserID    uuid.UUID    `json:"user_id"`
+	ID                uuid.UUID    `json:"id"`
+	Slug              string       `json:"slug"`
+	ExpiresAt         sql.NullTime `json:"expires_at"`
+	UserID            uuid.UUID    `json:"user_id"`
+	IsMonetized       bool         `json:"is_monetized"`
+	AllowedCategories []string     `json:"allowed_categories"`
 }
 
 func (q *Queries) UpdateURL(ctx context.Context, arg UpdateURLParams) (Url, error) {
@@ -211,6 +226,8 @@ func (q *Queries) UpdateURL(ctx context.Context, arg UpdateURLParams) (Url, erro
 		arg.Slug,
 		arg.ExpiresAt,
 		arg.UserID,
+		arg.IsMonetized,
+		pq.Array(arg.AllowedCategories),
 	)
 	var i Url
 	err := row.Scan(
@@ -222,6 +239,8 @@ func (q *Queries) UpdateURL(ctx context.Context, arg UpdateURLParams) (Url, erro
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsMonetized,
+		pq.Array(&i.AllowedCategories),
 	)
 	return i, err
 }

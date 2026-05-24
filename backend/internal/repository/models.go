@@ -9,7 +9,57 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
+
+type Ad struct {
+	ID              uuid.UUID      `json:"id"`
+	AdvertiserID    uuid.UUID      `json:"advertiser_id"`
+	Title           string         `json:"title"`
+	Description     sql.NullString `json:"description"`
+	ImageUrl        string         `json:"image_url"`
+	TargetUrl       string         `json:"target_url"`
+	Category        string         `json:"category"`
+	AdType          string         `json:"ad_type"`
+	TotalBudget     string         `json:"total_budget"`
+	RemainingBudget string         `json:"remaining_budget"`
+	Cpm             string         `json:"cpm"`
+	Status          string         `json:"status"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+type AdCategory struct {
+	Category   string `json:"category"`
+	Label      string `json:"label"`
+	Multiplier string `json:"multiplier"`
+}
+
+type AdCpmRate struct {
+	AdType string `json:"ad_type"`
+	Cpm    string `json:"cpm"`
+}
+
+type AdEvent struct {
+	ID              uuid.UUID             `json:"id"`
+	AdID            uuid.UUID             `json:"ad_id"`
+	LinkID          uuid.UUID             `json:"link_id"`
+	EventType       string                `json:"event_type"`
+	IsValid         bool                  `json:"is_valid"`
+	QualityScore    string                `json:"quality_score"`
+	RejectionReason sql.NullString        `json:"rejection_reason"`
+	IpAddress       pqtype.Inet           `json:"ip_address"`
+	UserAgent       sql.NullString        `json:"user_agent"`
+	Metadata        pqtype.NullRawMessage `json:"metadata"`
+	CreatedAt       time.Time             `json:"created_at"`
+}
+
+type AdType struct {
+	AdType                string `json:"ad_type"`
+	Label                 string `json:"label"`
+	AspectRatio           string `json:"aspect_ratio"`
+	RecommendedResolution string `json:"recommended_resolution"`
+}
 
 type Click struct {
 	ID        uuid.UUID      `json:"id"`
@@ -23,15 +73,35 @@ type Click struct {
 	ClickedAt time.Time      `json:"clicked_at"`
 }
 
+type FaucetClaim struct {
+	ID        uuid.UUID      `json:"id"`
+	UserID    uuid.UUID      `json:"user_id"`
+	Amount    string         `json:"amount"`
+	TxHash    sql.NullString `json:"tx_hash"`
+	ClaimedAt time.Time      `json:"claimed_at"`
+}
+
+type Transaction struct {
+	ID        uuid.UUID             `json:"id"`
+	UserID    uuid.UUID             `json:"user_id"`
+	Amount    string                `json:"amount"`
+	Type      string                `json:"type"`
+	TxHash    sql.NullString        `json:"tx_hash"`
+	Metadata  pqtype.NullRawMessage `json:"metadata"`
+	CreatedAt time.Time             `json:"created_at"`
+}
+
 type Url struct {
-	ID        uuid.UUID    `json:"id"`
-	UserID    uuid.UUID    `json:"user_id"`
-	Slug      string       `json:"slug"`
-	Original  string       `json:"original"`
-	Custom    bool         `json:"custom"`
-	ExpiresAt sql.NullTime `json:"expires_at"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
+	ID                uuid.UUID    `json:"id"`
+	UserID            uuid.UUID    `json:"user_id"`
+	Slug              string       `json:"slug"`
+	Original          string       `json:"original"`
+	Custom            bool         `json:"custom"`
+	ExpiresAt         sql.NullTime `json:"expires_at"`
+	CreatedAt         time.Time    `json:"created_at"`
+	UpdatedAt         time.Time    `json:"updated_at"`
+	IsMonetized       bool         `json:"is_monetized"`
+	AllowedCategories []string     `json:"allowed_categories"`
 }
 
 type User struct {
@@ -40,4 +110,11 @@ type User struct {
 	Email     string    `json:"email"`
 	Password  string    `json:"password"`
 	CreatedAt time.Time `json:"created_at"`
+	Role      string    `json:"role"`
+}
+
+type Wallet struct {
+	UserID    uuid.UUID `json:"user_id"`
+	Balance   string    `json:"balance"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

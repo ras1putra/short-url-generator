@@ -1,8 +1,8 @@
 -- name: CreateURL :one
 INSERT INTO urls (
-  user_id, slug, original, custom, expires_at
+  user_id, slug, original, custom, expires_at, is_monetized, allowed_categories
 ) VALUES (
-  $1, $2, $3, $4, $5
+  $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING *;
 
@@ -26,7 +26,7 @@ SELECT COUNT(*) FROM urls WHERE user_id = $1;
 
 -- name: UpdateURL :one
 UPDATE urls
-SET slug = $2, expires_at = $3, updated_at = NOW()
+SET slug = $2, expires_at = $3, is_monetized = $5, allowed_categories = $6, updated_at = NOW()
 WHERE id = $1 AND user_id = $4
 RETURNING *;
 
