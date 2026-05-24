@@ -2,7 +2,7 @@ FROM oven/bun:alpine
 
 WORKDIR /app
 
-ENV NODE_ENV=development
+ENV NEXT_PUBLIC_APP_MODE=development
 
 RUN chown bun:bun /app
 
