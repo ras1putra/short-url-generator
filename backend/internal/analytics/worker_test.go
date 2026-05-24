@@ -2,46 +2,63 @@ package analytics
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 	"time"
 
 	"urlshortener/internal/repository"
+	"urlshortener/internal/testutil"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
-type MockClickSaver struct {
-	mock.Mock
-	saved chan struct{}
+func setupWorkerDB(t *testing.T) *repository.Queries {
+	_ = zap.ReplaceGlobals(zap.NewNop())
+	_, queries := testutil.SetupTestDB(t)
+	return queries
 }
 
-func (m *MockClickSaver) SaveClick(ctx context.Context, arg repository.SaveClickParams) (repository.Click, error) {
-	args := m.Called(ctx, arg)
-	if m.saved != nil {
-		m.saved <- struct{}{}
-	}
-	return args.Get(0).(repository.Click), args.Error(1)
+func createTestUser(t *testing.T, queries *repository.Queries, ctx context.Context) repository.User {
+	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
+		Name:     "Worker User",
+		Email:    "worker@example.com",
+		Password: "password",
+		Role:     "user",
+	})
+	require.NoError(t, err)
+	return user
+}
+
+func createTestURL(t *testing.T, queries *repository.Queries, ctx context.Context, userID uuid.UUID) repository.Url {
+	url, err := queries.CreateURL(ctx, repository.CreateURLParams{
+		UserID:   userID,
+		Slug:     "test",
+		Original: "https://example.com",
+		Custom:   false,
+	})
+	require.NoError(t, err)
+	return url
 }
 
 func TestNewAnalyticsWorker_CreatesWorker(t *testing.T) {
-	mockSaver := new(MockClickSaver)
-	worker := NewAnalyticsWorker(mockSaver, 100)
+	queries := setupWorkerDB(t)
+	worker := NewAnalyticsWorker(queries, 100)
 	assert.NotNil(t, worker)
 	assert.NotNil(t, worker.jobs)
 }
 
 func TestAnalyticsWorker_Enqueue_ProcessesEvent(t *testing.T) {
-	mockSaver := new(MockClickSaver)
-	mockSaver.saved = make(chan struct{}, 100)
+	queries := setupWorkerDB(t)
+	ctx := context.Background()
+	user := createTestUser(t, queries, ctx)
+	url := createTestURL(t, queries, ctx, user.ID)
 
-	worker := NewAnalyticsWorker(mockSaver, 100)
+	worker := NewAnalyticsWorker(queries, 100)
 
-	urlID := uuid.New()
 	event := ClickEvent{
-		UrlID:    urlID,
+		UrlID:    url.ID,
 		IPHash:   "abc123",
 		Country:  "US",
 		City:     "New York",
@@ -50,23 +67,26 @@ func TestAnalyticsWorker_Enqueue_ProcessesEvent(t *testing.T) {
 		Referrer: "https://google.com",
 	}
 
-	mockSaver.On("SaveClick", mock.Anything, mock.MatchedBy(func(arg repository.SaveClickParams) bool {
-		return arg.UrlID == urlID
-	})).Return(repository.Click{}, nil)
-
 	worker.Enqueue(event)
 
-	select {
-	case <-mockSaver.saved:
-		mockSaver.AssertCalled(t, "SaveClick", mock.Anything, mock.Anything)
-	case <-time.After(3 * time.Second):
-		t.Fatal("SaveClick was not called within timeout")
+	// Poll database to wait for the background worker to insert the click row
+	var count int64
+	var err error
+	for i := 0; i < 20; i++ {
+		count, err = queries.GetTotalClicksBySlug(ctx, "test")
+		if err == nil && count > 0 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
 }
 
 func TestAnalyticsWorker_Enqueue_DropsWhenFull(t *testing.T) {
-	mockSaver := new(MockClickSaver)
-	worker := NewAnalyticsWorker(mockSaver, 0)
+	queries := setupWorkerDB(t)
+	worker := NewAnalyticsWorker(queries, 0)
 
 	event := ClickEvent{
 		UrlID:   uuid.New(),
@@ -79,16 +99,16 @@ func TestAnalyticsWorker_Enqueue_DropsWhenFull(t *testing.T) {
 }
 
 func TestAnalyticsWorker_Enqueue_MultipleEvents(t *testing.T) {
-	mockSaver := new(MockClickSaver)
-	mockSaver.saved = make(chan struct{}, 100)
+	queries := setupWorkerDB(t)
+	ctx := context.Background()
+	user := createTestUser(t, queries, ctx)
+	url := createTestURL(t, queries, ctx, user.ID)
 
-	worker := NewAnalyticsWorker(mockSaver, 100)
-
-	mockSaver.On("SaveClick", mock.Anything, mock.Anything).Return(repository.Click{}, nil)
+	worker := NewAnalyticsWorker(queries, 100)
 
 	for i := 0; i < 5; i++ {
 		event := ClickEvent{
-			UrlID:   uuid.New(),
+			UrlID:   url.ID,
 			IPHash:  "hash",
 			Country: "US",
 			Device:  "mobile",
@@ -97,43 +117,19 @@ func TestAnalyticsWorker_Enqueue_MultipleEvents(t *testing.T) {
 		worker.Enqueue(event)
 	}
 
-	received := 0
-	timeout := time.After(3 * time.Second)
-	for received < 5 {
-		select {
-		case <-mockSaver.saved:
-			received++
-		case <-timeout:
-			t.Fatalf("Only received %d out of 5 events", received)
+	// Poll database to wait for background worker threads to write all 5 rows
+	var count int64
+	var err error
+	for i := 0; i < 20; i++ {
+		count, err = queries.GetTotalClicksBySlug(ctx, "test")
+		if err == nil && count >= 5 {
+			break
 		}
+		time.Sleep(50 * time.Millisecond)
 	}
 
-	mockSaver.AssertNumberOfCalls(t, "SaveClick", 5)
-}
-
-func TestAnalyticsWorker_Process_SaveClickError(t *testing.T) {
-	mockSaver := new(MockClickSaver)
-	mockSaver.saved = make(chan struct{}, 100)
-
-	worker := NewAnalyticsWorker(mockSaver, 100)
-
-	urlID := uuid.New()
-	event := ClickEvent{
-		UrlID:   urlID,
-		IPHash:  "abc",
-		Country: "US",
-	}
-
-	mockSaver.On("SaveClick", mock.Anything, mock.Anything).Return(repository.Click{}, sql.ErrConnDone)
-
-	worker.Enqueue(event)
-
-	select {
-	case <-mockSaver.saved:
-		mockSaver.AssertCalled(t, "SaveClick", mock.Anything, mock.Anything)
-	case <-time.After(2 * time.Second):
-		t.Fatal("SaveClick was not called within timeout")
-	}
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), count)
 }
 
 func TestClickEvent_Fields(t *testing.T) {

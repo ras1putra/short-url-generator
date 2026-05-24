@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"urlshortener/internal/repository"
+	"urlshortener/pkg/constants"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -35,7 +36,7 @@ func NewAnalyticsWorker(repo ClickSaver, bufferSize int) *AnalyticsWorker {
 		jobs: make(chan ClickEvent, bufferSize),
 		repo: repo,
 	}
-	for i := 0; i < 5; i++ {
+	for i := 0; i < constants.AnalyticsWorkerCount; i++ {
 		go w.process()
 	}
 	return w
