@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Link2 } from "lucide-react";
+import { Link2, Megaphone } from "lucide-react";
 
 export default function Navbar() {
   return (
@@ -17,6 +17,10 @@ export default function Navbar() {
         <a href="#features" className="hover:text-white transition-colors">Features</a>
         <a href="#how" className="hover:text-white transition-colors">How it works</a>
         <a href="#stats" className="hover:text-white transition-colors">Plus points</a>
+        <Link href="/register/advertiser" className="hover:text-white transition-colors flex items-center gap-1.5">
+          <Megaphone size={14} />
+          Advertise
+        </Link>
       </div>
 
       <div className="flex items-center gap-3">

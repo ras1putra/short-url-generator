@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, Zap, BarChart3, QrCode, Globe, Clock } from "lucide-react";
+import { Shield, Zap, BarChart3, QrCode, Globe, Clock, Megaphone } from "lucide-react";
 
 const FEATURES_DATA = [
   {
@@ -22,6 +22,11 @@ const FEATURES_DATA = [
     icon: <QrCode size={20} />,
     title: "QR Codes Built In",
     desc: "Every link comes with a ready-to-use QR code. Perfect for print, packaging, or in-store displays. Customize the size to fit your needs.",
+  },
+  {
+    icon: <Megaphone size={20} />,
+    title: "Ad Campaigns",
+    desc: "Launch and manage ad campaigns with full budget control. Set your CPM, choose categories, and track spend in real time.",
   },
   {
     icon: <Globe size={20} />,

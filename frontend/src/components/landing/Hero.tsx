@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ChevronRight, Zap, Copy, Check } from "lucide-react";
+import { ArrowRight, ChevronRight, Zap, Copy, Check, Megaphone } from "lucide-react";
 
 export default function Hero() {
   const [copied, setCopied] = useState(false);
@@ -32,12 +32,16 @@ export default function Hero() {
       </h1>
 
       <p className="fade-in text-lg md:text-xl mb-10 max-w-xl leading-relaxed text-white/80 [animation-delay:0.2s]">
-        Create short, memorable links that drive results. Track every click, generate QR codes, and gain insights into your audience — all in one powerful platform.
+        Create short, memorable links. Run targeted ad campaigns. Track everything in real time.
       </p>
 
       <div className="fade-in flex flex-col sm:flex-row items-start sm:items-center gap-4 [animation-delay:0.3s]">
         <Link href="/register" className="btn-primary px-8 py-4 rounded-xl text-base inline-flex items-center gap-2">
           Start shortening <ArrowRight size={18} />
+        </Link>
+        <Link href="/register/advertiser" className="px-8 py-4 rounded-xl text-base font-bold tracking-tight inline-flex items-center gap-2 bg-[#22D3EE] text-[#0A0A0A] hover:bg-[#67E8F9] hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(34,211,238,0.3)] transition-all duration-200">
+          <Megaphone size={18} />
+          Advertise with us
         </Link>
         <a href="#how" className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors">
           See how it works <ChevronRight size={16} />
