@@ -6,16 +6,110 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER" ]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
+  db_test:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_DB=urlshortener_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=secret
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER" ]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+
+  test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.testing
+    environment:
+      - APP_MODE=test
+      - DB_HOST=db_test
+      - DB_PORT=5432
+      - DB_NAME=urlshortener_test
+      - DB_USER=postgres
+      - DB_PASSWORD=secret
+      - REDIS_ADDR=redis:6379
+      - JWT_ACCESS_SECRET=test-access-secret
+      - JWT_REFRESH_SECRET=test-refresh-secret
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db_test:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   redis:
     image: redis:8-alpine
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  garage:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.garage
+    ports:
+      - "3900:3900" # S3 API
+      - "3902:3902" # Static web
+      - "3903:3903" # Admin API
+    volumes:
+      - ./backend/garage.toml:/etc/garage.toml:ro
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+      - web3_data:/shared
+    entrypoint: >
+      sh -c '
+        /bin/garage server &
+        echo "Waiting for Garage S3 to start..."
+        sleep 3
+        NODE_ID=$(\/bin/garage node id -q | cut -c 1-16)
+        echo "Got Node ID: $$NODE_ID"
+        
+        if ! /bin/garage status | grep -q "local"; then
+          echo "Initializing cluster layout..."
+          /bin/garage layout assign $$NODE_ID --zone local --capacity 10G
+          /bin/garage layout apply --version 1
+          
+          echo "Creating S3 key..."
+          KEY_OUT=$(\/bin/garage key create developer)
+          echo "Key created:"
+          echo "$$KEY_OUT"
+          
+          ACCESS_KEY=$$(echo "$$KEY_OUT" | grep -i "key id" | cut -d: -f2- | tr -d " ")
+          SECRET_KEY=$$(echo "$$KEY_OUT" | grep -i "secret key" | cut -d: -f2- | tr -d " ")
+          
+          echo "Writing S3 credentials to shared volume..."
+          echo "S3_ACCESS_KEY=$$ACCESS_KEY" > /shared/.s3.credentials
+          echo "S3_SECRET_KEY=$$SECRET_KEY" >> /shared/.s3.credentials
+          
+          /bin/garage bucket create short-url-ads
+          /bin/garage bucket allow short-url-ads --key developer --read --write --owner
+          /bin/garage bucket website --allow short-url-ads
+          echo "Garage S3 successfully initialized!"
+        else
+          echo "Garage is already initialized!"
+        fi
+        
+        wait
+      '
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3900" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   backend:
@@ -24,13 +118,19 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./backend:/app
+      - web3_data:/shared
     env_file:
       - ./backend/.env
+    environment:
+      - NODE_RPC_URL=http://anvil-node:8545
+    command: sh /app/entrypoint.dev.sh
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+      deploy-web3:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   frontend:
@@ -69,6 +169,63 @@ services:
       db:
         condition: service_healthy
 
+  anvil-node:
+    image: ghcr.io/foundry-rs/foundry:latest
+    ports:
+      - "8545:8545"
+    entrypoint: [ "anvil", "--host", "0.0.0.0" ]
+    healthcheck:
+      test: [ "CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  deploy-web3:
+    build:
+      context: ./web3-token
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./web3-token:/app
+      - /app/node_modules
+      - web3_data:/shared
+    env_file:
+      - ./web3-token/.env
+    environment:
+      - OUTPUT_FILE=/shared/.web3.addresses
+      - HARDHAT_RPC_URL=http://anvil-node:8545
+      - APP_MODE=dev
+    command: >
+      sh -c '
+        echo "Waiting for anvil-node..."
+        npx wait-on tcp:anvil-node:8545 &&
+        echo "Deploying contracts..."
+        npx hardhat run scripts/deploy.ts --network localhost &&
+        echo ""
+        echo "=== Deployed Addresses ===" &&
+        cat /shared/.web3.addresses &&
+        echo "==========================" &&
+        echo "Deployment complete!"
+      '
+    depends_on:
+      anvil-node:
+        condition: service_healthy
+
+  otterscan:
+    image: otterscan/otterscan:latest
+    ports:
+      - "5100:80"
+    environment:
+      - ERIGON_URL=http://127.0.0.1:8545
+    depends_on:
+      anvil-node:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   db_data:
   redis_data:
+  web3_data:
+  garage_meta:
+  garage_data:

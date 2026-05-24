@@ -5,7 +5,7 @@ WORKDIR /app
 ENV ENV=development
 ENV GEOIP_DB_PATH=./GeoLite2-City.mmdb
 
-RUN apk add --no-cache git make && \
+RUN apk add --no-cache git make ffmpeg && \
     adduser -D app && \
     chown app:app /app
 

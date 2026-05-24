@@ -6,16 +6,38 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER" ]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   redis:
-    image: redis:8.6-alpine
+    image: redis:8-alpine
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  garage:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.garage
+    ports:
+      - "3900:3900" # S3 API
+    volumes:
+      - ./backend/garage.toml:/etc/garage.toml:ro
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3900" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   backend:
@@ -28,7 +50,7 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     read_only: true
     tmpfs:
       - /tmp
@@ -78,3 +100,5 @@ services:
 volumes:
   db_data:
   redis_data:
+  garage_meta:
+  garage_data:
