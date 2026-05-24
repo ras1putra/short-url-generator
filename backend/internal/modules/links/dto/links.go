@@ -9,34 +9,42 @@ import (
 )
 
 type CreateURLRequest struct {
-	URL          string `json:"url" validate:"required,url"`
-	CustomSlug   string `json:"custom_slug,omitempty" validate:"omitempty,slug,min=3,max=20"`
-	ExpiresValue int    `json:"expires_value,omitempty" validate:"omitempty,min=1"`
-	ExpiresUnit  string `json:"expires_unit,omitempty" validate:"omitempty,oneof=minutes hours days"`
+	URL               string   `json:"url" validate:"required,url"`
+	CustomSlug        string   `json:"custom_slug,omitempty" validate:"omitempty,slug,min=3,max=20"`
+	ExpiresValue      int      `json:"expires_value,omitempty" validate:"omitempty,min=1"`
+	ExpiresUnit       string   `json:"expires_unit,omitempty" validate:"omitempty,oneof=minutes hours days"`
+	IsMonetized       bool     `json:"is_monetized"`
+	AllowedCategories []string `json:"allowed_categories,omitempty"`
 }
 
 type UpdateURLRequest struct {
-	CustomSlug   string `json:"custom_slug,omitempty" validate:"omitempty,slug,min=3,max=20"`
-	ExpiresValue int    `json:"expires_value,omitempty" validate:"omitempty,min=1"`
-	ExpiresUnit  string `json:"expires_unit,omitempty" validate:"omitempty,oneof=minutes hours days"`
+	CustomSlug        string   `json:"custom_slug,omitempty" validate:"omitempty,slug,min=3,max=20"`
+	ExpiresValue      int      `json:"expires_value,omitempty" validate:"omitempty,min=1"`
+	ExpiresUnit       string   `json:"expires_unit,omitempty" validate:"omitempty,oneof=minutes hours days"`
+	IsMonetized       *bool    `json:"is_monetized,omitempty"`
+	AllowedCategories []string `json:"allowed_categories,omitempty"`
 }
 
 type URLResponse struct {
-	Slug      string     `json:"slug"`
-	ShortURL  string     `json:"short_url"`
-	Original  string     `json:"original"`
-	QRURL     string     `json:"qr_url"`
-	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
+	Slug              string     `json:"slug"`
+	ShortURL          string     `json:"short_url"`
+	Original          string     `json:"original"`
+	QRURL             string     `json:"qr_url"`
+	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
+	CreatedAt         string     `json:"created_at"`
+	IsMonetized       bool       `json:"is_monetized"`
+	AllowedCategories []string   `json:"allowed_categories,omitempty"`
 }
 
 func MapURLToResponse(url repository.Url, cfg *config.Config) URLResponse {
 	resp := URLResponse{
-		Slug:      url.Slug,
-		ShortURL:  fmt.Sprintf("%s/%s", cfg.BaseURL, url.Slug),
-		Original:  url.Original,
-		QRURL:     fmt.Sprintf("%s/api/links/%s/qr", cfg.BaseURL, url.Slug),
-		CreatedAt: url.CreatedAt,
+		Slug:              url.Slug,
+		ShortURL:          fmt.Sprintf("%s/%s", cfg.BaseURL, url.Slug),
+		Original:          url.Original,
+		QRURL:             fmt.Sprintf("%s/api/links/%s/qr", cfg.BaseURL, url.Slug),
+		CreatedAt:         url.CreatedAt.Format(time.RFC3339),
+		IsMonetized:       url.IsMonetized,
+		AllowedCategories: url.AllowedCategories,
 	}
 	if url.ExpiresAt.Valid {
 		resp.ExpiresAt = &url.ExpiresAt.Time

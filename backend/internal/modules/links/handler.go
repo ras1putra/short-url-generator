@@ -13,6 +13,8 @@ import (
 	"urlshortener/internal/config"
 	"urlshortener/internal/modules/links/dto"
 	"urlshortener/internal/repository"
+	"urlshortener/pkg/constants"
+	"urlshortener/pkg/helper"
 	"urlshortener/pkg/logger"
 	"urlshortener/pkg/response"
 	tjvalidator "urlshortener/pkg/validator"
@@ -39,37 +41,14 @@ func NewLinksHandler(svc URLServicer, cfg *config.Config) *LinksHandler {
 	return &LinksHandler{svc: svc, validate: tjvalidator.New(), cfg: cfg}
 }
 
-func (h *LinksHandler) parseAndValidate(c *fiber.Ctx, req interface{}) error {
-	if err := c.BodyParser(req); err != nil {
-		return response.NewAppError(400, "Invalid JSON")
-	}
-	if err := h.validate.Struct(req); err != nil {
-		return response.NewAppError(400, tjvalidator.FormatErrors(err))
-	}
-	return nil
-}
-
-func userIDFromCtx(c *fiber.Ctx) (uuid.UUID, error) {
-	idStr, ok := c.Locals("user_id").(string)
-	if !ok {
-		return uuid.Nil, response.NewAppError(401, "Missing user ID")
-	}
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		return uuid.Nil, response.NewAppError(401, "Invalid user ID")
-	}
-	return id, nil
-}
-
 func (h *LinksHandler) Create(c *fiber.Ctx) error {
-	requestID, _ := c.Locals("request_id").(string)
-	userID, err := userIDFromCtx(c)
+	userID, err := helper.UserIDFromCtx(c)
 	if err != nil {
 		return response.Unauthorized(c, err.Error())
 	}
 
 	var req dto.CreateURLRequest
-	if err := h.parseAndValidate(c, &req); err != nil {
+	if err := helper.ParseAndValidate(c, h.validate, &req); err != nil {
 		return err
 	}
 
@@ -78,29 +57,28 @@ func (h *LinksHandler) Create(c *fiber.Ctx) error {
 		return response.HandleError(c, err, "URL creation")
 	}
 
-	logger.WithUser(userID.String()).Info("URL shortened successfully",
+	logger.Ctx(c.UserContext()).Info("URL shortened successfully",
 		zap.String("slug", resp.Slug),
 		zap.String("original", resp.Original),
 		zap.String("ip", c.IP()),
-		zap.String("request_id", requestID),
 	)
 
 	return response.Created(c, resp, "URL shortened successfully")
 }
 
 func (h *LinksHandler) List(c *fiber.Ctx) error {
-	userID, err := userIDFromCtx(c)
+	userID, err := helper.UserIDFromCtx(c)
 	if err != nil {
 		return response.Unauthorized(c, err.Error())
 	}
 
-	page := c.QueryInt("page", 1)
-	perPage := c.QueryInt("per_page", 5)
+	page := c.QueryInt("page", constants.DefaultPage)
+	perPage := c.QueryInt("per_page", constants.DefaultPerPage)
 	if page < 1 {
-		page = 1
+		page = constants.DefaultPage
 	}
-	if perPage < 1 || perPage > 100 {
-		perPage = 5
+	if perPage < 1 || perPage > constants.MaxPerPage {
+		perPage = constants.DefaultPerPage
 	}
 
 	resp, err := h.svc.ListByUser(c.Context(), userID, page, perPage)
@@ -108,12 +86,16 @@ func (h *LinksHandler) List(c *fiber.Ctx) error {
 		return response.HandleError(c, err, "URL list")
 	}
 
+	logger.Ctx(c.UserContext()).Info("URLs listed",
+		zap.Int("page", page),
+		zap.Int("per_page", perPage),
+	)
+
 	return response.OK(c, resp, "URLs fetched successfully")
 }
 
 func (h *LinksHandler) Delete(c *fiber.Ctx) error {
-	requestID, _ := c.Locals("request_id").(string)
-	userID, err := userIDFromCtx(c)
+	userID, err := helper.UserIDFromCtx(c)
 	if err != nil {
 		return response.Unauthorized(c, err.Error())
 	}
@@ -124,32 +106,36 @@ func (h *LinksHandler) Delete(c *fiber.Ctx) error {
 		return response.HandleError(c, err, "URL deletion")
 	}
 
-	logger.WithUser(userID.String()).Info("URL deleted successfully",
+	logger.Ctx(c.UserContext()).Info("URL deleted successfully",
 		zap.String("slug", slug),
 		zap.String("ip", c.IP()),
-		zap.String("request_id", requestID),
 	)
 
 	return response.OK(c, nil, "Link deleted successfully")
 }
 
 func (h *LinksHandler) Get(c *fiber.Ctx) error {
-	userID, err := userIDFromCtx(c)
+	userID, err := helper.UserIDFromCtx(c)
 	if err != nil {
 		return response.Unauthorized(c, err.Error())
 	}
 
-	resp, err := h.svc.GetByID(c.Context(), userID, c.Params("slug"))
+	slug := c.Params("slug")
+
+	resp, err := h.svc.GetByID(c.Context(), userID, slug)
 	if err != nil {
 		return response.HandleError(c, err, "URL detail")
 	}
+
+	logger.Ctx(c.UserContext()).Info("URL fetched",
+		zap.String("slug", slug),
+	)
 
 	return response.OK(c, resp, "URL fetched successfully")
 }
 
 func (h *LinksHandler) Update(c *fiber.Ctx) error {
-	requestID, _ := c.Locals("request_id").(string)
-	userID, err := userIDFromCtx(c)
+	userID, err := helper.UserIDFromCtx(c)
 	if err != nil {
 		return response.Unauthorized(c, err.Error())
 	}
@@ -157,7 +143,7 @@ func (h *LinksHandler) Update(c *fiber.Ctx) error {
 	slug := c.Params("slug")
 
 	var req dto.UpdateURLRequest
-	if err := h.parseAndValidate(c, &req); err != nil {
+	if err := helper.ParseAndValidate(c, h.validate, &req); err != nil {
 		return err
 	}
 
@@ -166,31 +152,36 @@ func (h *LinksHandler) Update(c *fiber.Ctx) error {
 		return response.HandleError(c, err, "URL update")
 	}
 
-	logger.WithUser(userID.String()).Info("URL updated successfully",
+	logger.Ctx(c.UserContext()).Info("URL updated successfully",
 		zap.String("slug", resp.Slug),
 		zap.String("ip", c.IP()),
-		zap.String("request_id", requestID),
 	)
 
 	return response.OK(c, resp, "URL updated successfully")
 }
 
 func (h *LinksHandler) Stats(c *fiber.Ctx) error {
-	userID, err := userIDFromCtx(c)
+	userID, err := helper.UserIDFromCtx(c)
 	if err != nil {
 		return response.Unauthorized(c, err.Error())
 	}
 
-	resp, err := h.svc.GetStats(c.Context(), userID, c.Params("slug"))
+	slug := c.Params("slug")
+
+	resp, err := h.svc.GetStats(c.Context(), userID, slug)
 	if err != nil {
 		return response.HandleError(c, err, "URL stats")
 	}
+
+	logger.Ctx(c.UserContext()).Info("URL stats fetched",
+		zap.String("slug", slug),
+	)
 
 	return response.OK(c, resp, "Stats fetched successfully")
 }
 
 func (h *LinksHandler) AggregateStats(c *fiber.Ctx) error {
-	userID, err := userIDFromCtx(c)
+	userID, err := helper.UserIDFromCtx(c)
 	if err != nil {
 		return response.Unauthorized(c, err.Error())
 	}
@@ -200,6 +191,8 @@ func (h *LinksHandler) AggregateStats(c *fiber.Ctx) error {
 		return response.HandleError(c, err, "Aggregate stats")
 	}
 
+	logger.Ctx(c.UserContext()).Info("Aggregate stats fetched")
+
 	return response.OK(c, resp, "Aggregate stats fetched successfully")
 }
 
@@ -208,12 +201,12 @@ func (h *LinksHandler) QRCode(c *fiber.Ctx) error {
 
 	url, err := h.svc.GetBySlug(c.Context(), slug)
 	if err != nil {
-		return err
+		return response.HandleError(c, err, "QR Code generation")
 	}
 
-	size := 256
+	size := constants.QRCodeDefaultSize
 	if s := c.Query("size"); s != "" {
-		if parsed, err := strconv.Atoi(s); err == nil && parsed >= 64 && parsed <= 1024 {
+		if parsed, err := strconv.Atoi(s); err == nil && parsed >= constants.QRCodeMinSize && parsed <= constants.QRCodeMaxSize {
 			size = parsed
 		}
 	}
@@ -224,6 +217,11 @@ func (h *LinksHandler) QRCode(c *fiber.Ctx) error {
 	if err != nil {
 		return response.InternalError(c, "Failed to generate QR code")
 	}
+
+	logger.Ctx(c.UserContext()).Info("QR code generated",
+		zap.String("slug", slug),
+		zap.Int("size", size),
+	)
 
 	c.Set("Content-Type", "image/png")
 	c.Set("Cache-Control", "public, max-age=86400")

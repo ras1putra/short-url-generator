@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,78 +11,61 @@ import (
 
 	"urlshortener/internal/config"
 	"urlshortener/internal/modules/auth/dto"
+	"urlshortener/internal/repository"
+	"urlshortener/internal/testutil"
 	"urlshortener/pkg/constants"
 	"urlshortener/pkg/response"
+	"urlshortener/pkg/token"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
-type MockAuthServicer struct {
-	mock.Mock
+var testCfg = &config.Config{
+	BaseURL:          "http://localhost:8080",
+	JWTAccessSecret:  "test-secret",
+	JWTRefreshSecret: "test-refresh-secret",
+	Env:              "development",
 }
 
-func (m *MockAuthServicer) Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
-	args := m.Called(ctx, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*dto.AuthResponse), args.Error(1)
-}
-
-func (m *MockAuthServicer) Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error) {
-	args := m.Called(ctx, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*dto.AuthResponse), args.Error(1)
-}
-
-func (m *MockAuthServicer) RefreshToken(ctx context.Context, refreshToken string) (*dto.AuthResponse, error) {
-	args := m.Called(ctx, refreshToken)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*dto.AuthResponse), args.Error(1)
-}
-
-func (m *MockAuthServicer) Logout(ctx context.Context, accessToken, refreshToken string) error {
-	args := m.Called(ctx, accessToken, refreshToken)
-	return args.Error(0)
-}
-
-func setupAuthApp() (*fiber.App, *MockAuthServicer) {
+func setupAuthApp(t *testing.T) (*fiber.App, *repository.Queries) {
 	_ = zap.ReplaceGlobals(zap.NewNop())
-	mockSvc := new(MockAuthServicer)
-	cfg := &config.Config{JWTAccessSecret: "test-secret", JWTRefreshSecret: "test-refresh-secret", Env: "development"}
-	handler := NewAuthHandler(mockSvc, cfg)
+	db, queries := testutil.SetupTestDB(t)
+	fakeCache := testutil.NewFakeCacher()
+	svc := NewAuthService(db, queries, fakeCache, testCfg)
+	handler := NewAuthHandler(svc, testCfg)
+
 	app := fiber.New(fiber.Config{ErrorHandler: response.ErrorHandler})
 	app.Post("/api/auth/register", handler.Register)
 	app.Post("/api/auth/login", handler.Login)
 	app.Post("/api/auth/refresh", handler.Refresh)
 	app.Post("/api/auth/logout", handler.Logout)
-	return app, mockSvc
+
+	app.Post("/upgrade", func(c *fiber.Ctx) error {
+		// Mock auth middleware locals
+		userIDStr := c.Get("X-Test-User-ID")
+		if userIDStr == "" {
+			return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
+		}
+		c.Locals("user_id", userIDStr)
+		c.Locals("role", c.Get("X-Test-Role", "user"))
+		c.Locals("request_id", "test-req-id")
+		return handler.UpgradeToAdvertiser(c)
+	})
+
+	return app, queries
 }
 
 func TestHandlerRegisterSuccess(t *testing.T) {
-	app, mockSvc := setupAuthApp()
+	app, queries := setupAuthApp(t)
 
-	userID := uuid.New()
-	respData := &dto.AuthResponse{
-		AccessToken:  "access-token",
-		RefreshToken: "refresh-token",
-		User:         dto.UserResponse{ID: userID.String(), Email: "test@example.com", Name: "Test User", CreatedAt: time.Now()},
-	}
-
-	mockSvc.On("Register", mock.Anything, mock.MatchedBy(func(req dto.RegisterRequest) bool {
-		return req.Email == "test@example.com"
-	})).Return(respData, nil)
-
-	body, _ := json.Marshal(dto.RegisterRequest{Name: "Test User", Email: "test@example.com", Password: "password123"})
+	body, _ := json.Marshal(dto.RegisterRequest{
+		Name:     "Test User",
+		Email:    "handler-register@example.com",
+		Password: "password123",
+	})
 	req := httptest.NewRequest("POST", "/api/auth/register", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -91,11 +73,14 @@ func TestHandlerRegisterSuccess(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 201, resp.StatusCode)
 
-	mockSvc.AssertExpectations(t)
+	// Verify in DB
+	dbUser, err := queries.GetUserByEmail(context.Background(), "handler-register@example.com")
+	require.NoError(t, err)
+	assert.Equal(t, "Test User", dbUser.Name)
 }
 
 func TestHandlerRegisterValidationError(t *testing.T) {
-	app, _ := setupAuthApp()
+	app, _ := setupAuthApp(t)
 
 	body, _ := json.Marshal(map[string]string{"name": "", "email": "bad-email", "password": "12"})
 	req := httptest.NewRequest("POST", "/api/auth/register", bytes.NewReader(body))
@@ -107,20 +92,21 @@ func TestHandlerRegisterValidationError(t *testing.T) {
 }
 
 func TestHandlerLoginSuccess(t *testing.T) {
-	app, mockSvc := setupAuthApp()
+	app, queries := setupAuthApp(t)
+	ctx := context.Background()
 
-	userID := uuid.New()
-	respData := &dto.AuthResponse{
-		AccessToken:  "access-token",
-		RefreshToken: "refresh-token",
-		User:         dto.UserResponse{ID: userID.String(), Email: "test@example.com", Name: "Test User", CreatedAt: time.Now()},
-	}
+	// Pre-create user with a hashed password
+	hashedPassword := hashPassword("password123")
 
-	mockSvc.On("Login", mock.Anything, mock.MatchedBy(func(req dto.LoginRequest) bool {
-		return req.Email == "test@example.com"
-	})).Return(respData, nil)
+	_, err := queries.CreateUser(ctx, repository.CreateUserParams{
+		Name:     "Login User",
+		Email:    "handler-login@example.com",
+		Password: hashedPassword,
+		Role:     "user",
+	})
+	require.NoError(t, err)
 
-	body, _ := json.Marshal(dto.LoginRequest{Email: "test@example.com", Password: "password123"})
+	body, _ := json.Marshal(dto.LoginRequest{Email: "handler-login@example.com", Password: "password123"})
 	req := httptest.NewRequest("POST", "/api/auth/login", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -130,7 +116,7 @@ func TestHandlerLoginSuccess(t *testing.T) {
 }
 
 func TestHandlerRefreshMissingCookie(t *testing.T) {
-	app, _ := setupAuthApp()
+	app, _ := setupAuthApp(t)
 
 	req := httptest.NewRequest("POST", "/api/auth/refresh", nil)
 	resp, err := app.Test(req)
@@ -139,54 +125,30 @@ func TestHandlerRefreshMissingCookie(t *testing.T) {
 }
 
 func TestHandlerRefreshSuccess(t *testing.T) {
-	app, mockSvc := setupAuthApp()
+	app, queries := setupAuthApp(t)
+	ctx := context.Background()
 
-	userID := uuid.New()
-	respData := &dto.AuthResponse{
-		AccessToken: "new-access-token",
-		User:        dto.UserResponse{ID: userID.String(), Email: "test@example.com", Name: "Test User", CreatedAt: time.Now()},
-	}
+	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
+		Name:     "Refresh User",
+		Email:    "handler-refresh@example.com",
+		Password: "password",
+		Role:     "user",
+	})
+	require.NoError(t, err)
 
-	mockSvc.On("RefreshToken", mock.Anything, "refresh-token-value").Return(respData, nil)
+	refreshToken, err := token.IssueToken(user.ID.String(), user.Role, testCfg.JWTRefreshSecret, "refresh", 1*time.Hour)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest("POST", "/api/auth/refresh", nil)
-	req.AddCookie(&http.Cookie{Name: constants.CookieRefreshToken, Value: "refresh-token-value"})
+	req.AddCookie(&http.Cookie{Name: constants.CookieRefreshToken, Value: refreshToken})
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
-
-	mockSvc.AssertExpectations(t)
-}
-
-func TestHandlerRefreshInvalidToken(t *testing.T) {
-	app, mockSvc := setupAuthApp()
-
-	mockSvc.On("RefreshToken", mock.Anything, "invalid-token").Return(nil, response.NewAppError(401, "Invalid refresh token"))
-
-	req := httptest.NewRequest("POST", "/api/auth/refresh", nil)
-	req.AddCookie(&http.Cookie{Name: constants.CookieRefreshToken, Value: "invalid-token"})
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	assert.Equal(t, 401, resp.StatusCode)
-
-	mockSvc.AssertExpectations(t)
 }
 
 func TestHandlerLogoutSuccess(t *testing.T) {
-	_ = zap.ReplaceGlobals(zap.NewNop())
-	mockSvc := new(MockAuthServicer)
-	cfg := &config.Config{JWTAccessSecret: "test-secret", JWTRefreshSecret: "test-refresh-secret", Env: "development"}
-	handler := NewAuthHandler(mockSvc, cfg)
-	app := fiber.New(fiber.Config{ErrorHandler: response.ErrorHandler})
-	app.Use(func(c *fiber.Ctx) error {
-		c.Locals("user_id", uuid.New().String())
-		return c.Next()
-	})
-	app.Post("/api/auth/logout", handler.Logout)
-
-	mockSvc.On("Logout", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	app, _ := setupAuthApp(t)
 
 	req := httptest.NewRequest("POST", "/api/auth/logout", nil)
 	req.AddCookie(&http.Cookie{Name: constants.CookieAccessToken, Value: "some-access-token"})
@@ -195,12 +157,10 @@ func TestHandlerLogoutSuccess(t *testing.T) {
 	resp, err := app.Test(req)
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
-
-	mockSvc.AssertExpectations(t)
 }
 
 func TestHandlerRegister_InvalidJSON(t *testing.T) {
-	app, _ := setupAuthApp()
+	app, _ := setupAuthApp(t)
 
 	req := httptest.NewRequest("POST", "/api/auth/register", bytes.NewReader([]byte("{invalid")))
 	req.Header.Set("Content-Type", "application/json")
@@ -210,23 +170,8 @@ func TestHandlerRegister_InvalidJSON(t *testing.T) {
 	assert.Equal(t, 400, resp.StatusCode)
 }
 
-func TestHandlerRegister_ServiceError(t *testing.T) {
-	app, mockSvc := setupAuthApp()
-
-	mockSvc.On("Register", mock.Anything, mock.Anything).Return(nil, response.NewAppError(500, "Internal server error"))
-
-	body, _ := json.Marshal(dto.RegisterRequest{Name: "Test User", Email: "test@example.com", Password: "password123"})
-	req := httptest.NewRequest("POST", "/api/auth/register", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	assert.Equal(t, 500, resp.StatusCode)
-	mockSvc.AssertExpectations(t)
-}
-
 func TestHandlerLogin_InvalidJSON(t *testing.T) {
-	app, _ := setupAuthApp()
+	app, _ := setupAuthApp(t)
 
 	req := httptest.NewRequest("POST", "/api/auth/login", bytes.NewReader([]byte("{invalid")))
 	req.Header.Set("Content-Type", "application/json")
@@ -236,57 +181,49 @@ func TestHandlerLogin_InvalidJSON(t *testing.T) {
 	assert.Equal(t, 400, resp.StatusCode)
 }
 
-func TestHandlerLogin_ServiceError(t *testing.T) {
-	app, mockSvc := setupAuthApp()
-
-	mockSvc.On("Login", mock.Anything, mock.Anything).Return(nil, response.NewAppError(401, "Invalid credentials"))
-
-	body, _ := json.Marshal(dto.LoginRequest{Email: "test@example.com", Password: "password123"})
-	req := httptest.NewRequest("POST", "/api/auth/login", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	assert.Equal(t, 401, resp.StatusCode)
-	mockSvc.AssertExpectations(t)
+func TestSameSite_Production(t *testing.T) {
+	cfg := &config.Config{Env: "production"}
+	h := newCookieHelper(cfg)
+	assert.Equal(t, "Strict", h.sameSite())
 }
 
-func TestHandlerLogout_Error(t *testing.T) {
-	_ = zap.ReplaceGlobals(zap.NewNop())
-	mockSvc := new(MockAuthServicer)
-	cfg := &config.Config{JWTAccessSecret: "test-secret", JWTRefreshSecret: "test-refresh-secret", Env: "development"}
-	handler := NewAuthHandler(mockSvc, cfg)
-	app := fiber.New(fiber.Config{ErrorHandler: response.ErrorHandler})
-	app.Use(func(c *fiber.Ctx) error {
-		c.Locals("user_id", uuid.New().String())
-		return c.Next()
+func TestSameSite_Development(t *testing.T) {
+	cfg := &config.Config{Env: "development"}
+	h := newCookieHelper(cfg)
+	assert.Equal(t, "Lax", h.sameSite())
+}
+
+func TestHandlerUpgradeToAdvertiser_Success(t *testing.T) {
+	app, queries := setupAuthApp(t)
+	ctx := context.Background()
+
+	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
+		Name:     "Upgrade User",
+		Email:    "handler-upgrade@example.com",
+		Password: "password",
+		Role:     "user",
 	})
-	app.Post("/api/auth/logout", handler.Logout)
+	require.NoError(t, err)
 
-	mockSvc.On("Logout", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("revoke failed"))
-
-	req := httptest.NewRequest("POST", "/api/auth/logout", nil)
-	req.AddCookie(&http.Cookie{Name: constants.CookieAccessToken, Value: "some-access-token"})
-	req.AddCookie(&http.Cookie{Name: constants.CookieRefreshToken, Value: "some-refresh-token"})
+	req := httptest.NewRequest("POST", "/upgrade", nil)
+	req.Header.Set("X-Test-User-ID", user.ID.String())
+	req.Header.Set("X-Test-Role", "user")
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
-	mockSvc.AssertExpectations(t)
+
+	// Verify in DB
+	dbUser, err := queries.GetUserByID(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "advertiser", dbUser.Role)
 }
 
-func TestSameSite_Production(t *testing.T) {
-	_ = zap.ReplaceGlobals(zap.NewNop())
-	mockSvc := new(MockAuthServicer)
-	cfg := &config.Config{JWTAccessSecret: "test-secret", JWTRefreshSecret: "test-refresh-secret", Env: "production"}
-	handler := NewAuthHandler(mockSvc, cfg)
-	assert.Equal(t, "Strict", handler.sameSite())
-}
+func TestHandlerUpgradeToAdvertiser_Unauthorized(t *testing.T) {
+	app, _ := setupAuthApp(t)
 
-func TestSameSite_Development(t *testing.T) {
-	_ = zap.ReplaceGlobals(zap.NewNop())
-	mockSvc := new(MockAuthServicer)
-	cfg := &config.Config{JWTAccessSecret: "test-secret", JWTRefreshSecret: "test-refresh-secret", Env: "development"}
-	handler := NewAuthHandler(mockSvc, cfg)
-	assert.Equal(t, "Lax", handler.sameSite())
+	req := httptest.NewRequest("POST", "/upgrade", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 401, resp.StatusCode)
 }

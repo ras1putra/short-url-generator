@@ -37,7 +37,7 @@ func TestMapURLToResponse_NonExpiredURL(t *testing.T) {
 	assert.Equal(t, "https://example.com", resp.Original)
 	assert.Equal(t, "http://localhost:8080/api/links/abc123/qr", resp.QRURL)
 	assert.Nil(t, resp.ExpiresAt, "ExpiresAt should be nil for non-expiring URL")
-	assert.Equal(t, now, resp.CreatedAt)
+	assert.Equal(t, now.Format(time.RFC3339), resp.CreatedAt)
 }
 
 func TestMapURLToResponse_ExpiredURL(t *testing.T) {
@@ -66,7 +66,7 @@ func TestMapURLToResponse_ExpiredURL(t *testing.T) {
 	assert.Equal(t, "http://localhost:8080/api/links/xyz789/qr", resp.QRURL)
 	require.NotNil(t, resp.ExpiresAt, "ExpiresAt should not be nil for expiring URL")
 	assert.Equal(t, expiresAt, *resp.ExpiresAt)
-	assert.Equal(t, now, resp.CreatedAt)
+	assert.Equal(t, now.Format(time.RFC3339), resp.CreatedAt)
 }
 
 func TestMapURLToResponse_DifferentBaseURL(t *testing.T) {

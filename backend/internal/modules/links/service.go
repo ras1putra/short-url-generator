@@ -5,13 +5,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"sort"
 	"time"
 
 	"urlshortener/internal/cache"
 	"urlshortener/internal/config"
 	"urlshortener/internal/modules/links/dto"
 	"urlshortener/internal/repository"
+	"urlshortener/pkg/constants"
+	"urlshortener/pkg/logger"
 	"urlshortener/pkg/response"
 	"urlshortener/pkg/slug"
 
@@ -31,6 +32,21 @@ func NewURLService(repo repository.Querier, cache cache.Cacher, cfg *config.Conf
 	return &URLService{repo: repo, cache: cache, cfg: cfg, sfGroup: &singleflight.Group{}}
 }
 
+func (s *URLService) getURLBySlug(ctx context.Context, slug string, userID uuid.UUID) (repository.Url, error) {
+	url, err := s.repo.GetURLBySlug(ctx, slug)
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			logger.Ctx(ctx).Error("Failed to get URL by slug", zap.String("slug", slug), zap.Error(err))
+			return repository.Url{}, response.NewAppError(500, "Internal server error")
+		}
+		return repository.Url{}, response.NewAppError(404, "URL not found")
+	}
+	if url.UserID != userID {
+		return repository.Url{}, response.NewAppError(403, "Forbidden")
+	}
+	return url, nil
+}
+
 func (s *URLService) Create(ctx context.Context, userID uuid.UUID, req dto.CreateURLRequest) (*dto.URLResponse, error) {
 	var finalSlug string
 	var isCustom bool
@@ -44,14 +60,14 @@ func (s *URLService) Create(ctx context.Context, userID uuid.UUID, req dto.Creat
 			return nil, response.NewAppError(409, "Custom slug already taken")
 		}
 		if !errors.Is(err, sql.ErrNoRows) {
-			zap.L().Error("Failed to check custom slug availability", zap.Error(err))
+			logger.Ctx(ctx).Error("Failed to check custom slug availability", zap.Error(err))
 			return nil, response.NewAppError(500, "Internal server error")
 		}
 		finalSlug = req.CustomSlug
 		isCustom = true
 	} else {
-		for i := 0; i < 5; i++ {
-			randSlug := slug.Generate(6)
+		for i := 0; i < constants.MaxLinkSlugRetries; i++ {
+			randSlug := slug.Generate(constants.DefaultSlugLength)
 			if slug.IsReserved(randSlug) {
 				continue
 			}
@@ -61,41 +77,46 @@ func (s *URLService) Create(ctx context.Context, userID uuid.UUID, req dto.Creat
 				break
 			}
 			if err != nil {
-				zap.L().Error("Failed to check generated slug", zap.Error(err))
+				logger.Ctx(ctx).Error("Failed to check generated slug", zap.Error(err))
 				return nil, response.NewAppError(500, "Internal server error")
 			}
 		}
 		if finalSlug == "" {
+			logger.Ctx(ctx).Error("Failed to generate unique slug after attempts", zap.Int("max_attempts", constants.MaxLinkSlugRetries))
 			return nil, response.NewAppError(500, "Failed to generate unique slug")
 		}
 	}
 
-	var expiresAt sql.NullTime
-	if req.ExpiresValue > 0 {
-		expiresAt.Valid = true
-		switch req.ExpiresUnit {
-		case "minutes":
-			expiresAt.Time = time.Now().Add(time.Duration(req.ExpiresValue) * time.Minute)
-		case "hours":
-			expiresAt.Time = time.Now().Add(time.Duration(req.ExpiresValue) * time.Hour)
-		default:
-			expiresAt.Time = time.Now().AddDate(0, 0, req.ExpiresValue)
-		}
+	expiresAt, err := computeExpiresAt(req.ExpiresValue, req.ExpiresUnit)
+	if err != nil {
+		return nil, err
+	}
+
+	allowed := req.AllowedCategories
+	if allowed == nil {
+		allowed = []string{}
 	}
 
 	url, err := s.repo.CreateURL(ctx, repository.CreateURLParams{
-		UserID:    userID,
-		Slug:      finalSlug,
-		Original:  req.URL,
-		Custom:    isCustom,
-		ExpiresAt: expiresAt,
+		UserID:            userID,
+		Slug:              finalSlug,
+		Original:          req.URL,
+		Custom:            isCustom,
+		ExpiresAt:         expiresAt,
+		IsMonetized:       req.IsMonetized,
+		AllowedCategories: allowed,
 	})
 	if err != nil {
-		zap.L().Error("Failed to save URL to DB", zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to save URL to DB", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to create URL")
 	}
 
 	resp := dto.MapURLToResponse(url, s.cfg)
+	logger.Ctx(ctx).Info("URL created successfully",
+		zap.String("slug", url.Slug),
+		zap.String("original", url.Original),
+		zap.Bool("custom", url.Custom),
+	)
 	return &resp, nil
 }
 
@@ -105,14 +126,16 @@ func (s *URLService) GetBySlug(ctx context.Context, slug string) (*repository.Ur
 		if err == nil && cachedData != "" {
 			var url repository.Url
 			if json.Unmarshal([]byte(cachedData), &url) == nil {
+				logger.Ctx(ctx).Debug("URL cache hit", zap.String("slug", slug))
 				return &url, nil
 			}
 		}
 
+		logger.Ctx(ctx).Debug("URL cache miss, fetching from DB", zap.String("slug", slug))
 		url, err := s.repo.GetURLBySlug(ctx, slug)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				zap.L().Error("Failed to get URL by slug", zap.String("slug", slug), zap.Error(err))
+				logger.Ctx(ctx).Error("Failed to get URL by slug", zap.String("slug", slug), zap.Error(err))
 				return nil, response.NewAppError(500, "Internal server error")
 			}
 			return nil, response.NewAppError(404, "URL not found")
@@ -123,7 +146,7 @@ func (s *URLService) GetBySlug(ctx context.Context, slug string) (*repository.Ur
 		}
 
 		if bytes, err := json.Marshal(url); err == nil {
-			s.cache.Set(ctx, slug, bytes, 24*time.Hour)
+			s.cache.Set(ctx, slug, bytes, constants.DefaultURLCacheTTL)
 		}
 
 		return &url, nil
@@ -138,7 +161,7 @@ func (s *URLService) GetBySlug(ctx context.Context, slug string) (*repository.Ur
 func (s *URLService) ListByUser(ctx context.Context, userID uuid.UUID, page, perPage int) (*dto.ListResponse, error) {
 	total, err := s.repo.CountURLsByUser(ctx, userID)
 	if err != nil {
-		zap.L().Error("Failed to count URLs", zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to count URLs", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to fetch URLs")
 	}
 
@@ -149,7 +172,7 @@ func (s *URLService) ListByUser(ctx context.Context, userID uuid.UUID, page, per
 		Offset: offset,
 	})
 	if err != nil {
-		zap.L().Error("Failed to list URLs", zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to list URLs", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to fetch URLs")
 	}
 
@@ -173,40 +196,28 @@ func (s *URLService) ListByUser(ctx context.Context, userID uuid.UUID, page, per
 }
 
 func (s *URLService) Delete(ctx context.Context, userID uuid.UUID, slug string) error {
-	url, err := s.repo.GetURLBySlug(ctx, slug)
+	url, err := s.getURLBySlug(ctx, slug, userID)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			zap.L().Error("Failed to get URL for deletion", zap.String("slug", slug), zap.Error(err))
-			return response.NewAppError(500, "Internal server error")
-		}
-		return response.NewAppError(404, "URL not found")
-	}
-
-	if url.UserID != userID {
-		return response.NewAppError(403, "Forbidden")
+		return err
 	}
 
 	if err := s.repo.DeleteURL(ctx, repository.DeleteURLParams{ID: url.ID, UserID: userID}); err != nil {
-		zap.L().Error("Failed to delete URL", zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to delete URL", zap.Error(err))
 		return response.NewAppError(500, "Failed to delete URL")
 	}
 
 	s.cache.Del(ctx, slug)
+	logger.Ctx(ctx).Info("URL deleted successfully",
+		zap.String("slug", slug),
+		zap.String("url_id", url.ID.String()),
+	)
 	return nil
 }
 
 func (s *URLService) GetByID(ctx context.Context, userID uuid.UUID, slug string) (*dto.URLResponse, error) {
-	url, err := s.repo.GetURLBySlug(ctx, slug)
+	url, err := s.getURLBySlug(ctx, slug, userID)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			zap.L().Error("Failed to get URL by slug", zap.String("slug", slug), zap.Error(err))
-			return nil, response.NewAppError(500, "Internal server error")
-		}
-		return nil, response.NewAppError(404, "URL not found")
-	}
-
-	if url.UserID != userID {
-		return nil, response.NewAppError(403, "Forbidden")
+		return nil, err
 	}
 
 	resp := dto.MapURLToResponse(url, s.cfg)
@@ -214,17 +225,9 @@ func (s *URLService) GetByID(ctx context.Context, userID uuid.UUID, slug string)
 }
 
 func (s *URLService) Update(ctx context.Context, userID uuid.UUID, currentSlug string, req dto.UpdateURLRequest) (*dto.URLResponse, error) {
-	url, err := s.repo.GetURLBySlug(ctx, currentSlug)
+	url, err := s.getURLBySlug(ctx, currentSlug, userID)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			zap.L().Error("Failed to get URL for update", zap.String("slug", currentSlug), zap.Error(err))
-			return nil, response.NewAppError(500, "Internal server error")
-		}
-		return nil, response.NewAppError(404, "URL not found")
-	}
-
-	if url.UserID != userID {
-		return nil, response.NewAppError(403, "Forbidden")
+		return nil, err
 	}
 
 	newSlug := url.Slug
@@ -237,7 +240,7 @@ func (s *URLService) Update(ctx context.Context, userID uuid.UUID, currentSlug s
 			return nil, response.NewAppError(409, "Custom slug already taken")
 		}
 		if !errors.Is(err, sql.ErrNoRows) {
-			zap.L().Error("Failed to check slug availability", zap.Error(err))
+			logger.Ctx(ctx).Error("Failed to check slug availability", zap.Error(err))
 			return nil, response.NewAppError(500, "Internal server error")
 		}
 		newSlug = req.CustomSlug
@@ -245,27 +248,34 @@ func (s *URLService) Update(ctx context.Context, userID uuid.UUID, currentSlug s
 
 	var expiresAt sql.NullTime
 	if req.ExpiresValue > 0 {
-		expiresAt.Valid = true
-		switch req.ExpiresUnit {
-		case "minutes":
-			expiresAt.Time = time.Now().Add(time.Duration(req.ExpiresValue) * time.Minute)
-		case "hours":
-			expiresAt.Time = time.Now().Add(time.Duration(req.ExpiresValue) * time.Hour)
-		default:
-			expiresAt.Time = time.Now().AddDate(0, 0, req.ExpiresValue)
+		expiresAt, err = computeExpiresAt(req.ExpiresValue, req.ExpiresUnit)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		expiresAt = url.ExpiresAt
 	}
 
+	isMonetized := url.IsMonetized
+	if req.IsMonetized != nil {
+		isMonetized = *req.IsMonetized
+	}
+
+	allowedCats := url.AllowedCategories
+	if req.AllowedCategories != nil {
+		allowedCats = req.AllowedCategories
+	}
+
 	updated, err := s.repo.UpdateURL(ctx, repository.UpdateURLParams{
-		ID:        url.ID,
-		Slug:      newSlug,
-		ExpiresAt: expiresAt,
-		UserID:    userID,
+		ID:                url.ID,
+		Slug:              newSlug,
+		ExpiresAt:         expiresAt,
+		UserID:            userID,
+		IsMonetized:       isMonetized,
+		AllowedCategories: allowedCats,
 	})
 	if err != nil {
-		zap.L().Error("Failed to update URL", zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to update URL", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to update URL")
 	}
 
@@ -274,162 +284,69 @@ func (s *URLService) Update(ctx context.Context, userID uuid.UUID, currentSlug s
 	}
 
 	resp := dto.MapURLToResponse(updated, s.cfg)
+	logger.Ctx(ctx).Info("URL updated successfully",
+		zap.String("old_slug", url.Slug),
+		zap.String("new_slug", updated.Slug),
+		zap.String("url_id", url.ID.String()),
+	)
 	return &resp, nil
 }
 
 func (s *URLService) GetStats(ctx context.Context, userID uuid.UUID, slug string) (*dto.StatsResponse, error) {
-	url, err := s.repo.GetURLBySlug(ctx, slug)
+	_, err := s.getURLBySlug(ctx, slug, userID)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			zap.L().Error("Failed to get URL for stats", zap.String("slug", slug), zap.Error(err))
-			return nil, response.NewAppError(500, "Internal server error")
-		}
-		return nil, response.NewAppError(404, "URL not found")
-	}
-
-	if url.UserID != userID {
-		return nil, response.NewAppError(403, "Forbidden")
+		return nil, err
 	}
 
 	totalClicks, err := s.repo.GetTotalClicksBySlug(ctx, slug)
 	if err != nil {
-		zap.L().Error("Failed to get total clicks", zap.String("slug", slug), zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to get total clicks", zap.String("slug", slug), zap.Error(err))
 		return nil, response.NewAppError(500, "Internal server error")
 	}
 
 	rows, err := s.repo.GetStatsBySlug(ctx, slug)
 	if err != nil {
-		zap.L().Error("Failed to get stats", zap.String("slug", slug), zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to get stats", zap.String("slug", slug), zap.Error(err))
 		return nil, response.NewAppError(500, "Internal server error")
 	}
 
-	browsers := make(map[string]int64)
-	devices := make(map[string]int64)
-	countryMap := make(map[string]int64)
-	dateMap := make(map[string]int64)
-
-	for _, row := range rows {
-		if row.Browser.Valid && row.Browser.String != "" {
-			browsers[row.Browser.String] += row.ClickCount
-		}
-		if row.Device.Valid && row.Device.String != "" {
-			devices[row.Device.String] += row.ClickCount
-		}
-		if row.Country.Valid && row.Country.String != "" {
-			countryMap[row.Country.String] += row.ClickCount
-		} else {
-			countryMap["Unknown"] += row.ClickCount
-		}
-		dateStr := row.ClickDate.Format("2006-01-02")
-		dateMap[dateStr] += row.ClickCount
-	}
-
-	topCountries := make([]dto.CountryCount, 0, len(countryMap))
-	for c, cnt := range countryMap {
-		topCountries = append(topCountries, dto.CountryCount{Country: c, Count: cnt})
-	}
-	sort.Slice(topCountries, func(i, j int) bool {
-		return topCountries[i].Count > topCountries[j].Count
-	})
-	if len(topCountries) > 10 {
-		topCountries = topCountries[:10]
-	}
-
-	clicksPerDay := make([]dto.DateCount, 0, len(dateMap))
-	for d, cnt := range dateMap {
-		clicksPerDay = append(clicksPerDay, dto.DateCount{Date: d, Count: cnt})
-	}
-	sort.Slice(clicksPerDay, func(i, j int) bool {
-		return clicksPerDay[i].Date > clicksPerDay[j].Date
-	})
+	clickRows := clickRowsFromStatsRows(rows)
 
 	uniqueClicks, err := s.repo.GetUniqueClicksBySlug(ctx, slug)
 	if err != nil {
-		zap.L().Error("Failed to get unique clicks", zap.String("slug", slug), zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to get unique clicks", zap.String("slug", slug), zap.Error(err))
 		uniqueClicks = totalClicks
 	}
 
-	return &dto.StatsResponse{
-		TotalClicks:  totalClicks,
-		UniqueClicks: uniqueClicks,
-		ClicksPerDay: clicksPerDay,
-		TopCountries: topCountries,
-		Browsers:     browsers,
-		Devices:      devices,
-	}, nil
+	return buildStatsResponse(totalClicks, uniqueClicks, clickRows), nil
 }
 
 func (s *URLService) GetAggregateStats(ctx context.Context, userID uuid.UUID) (*dto.StatsResponse, error) {
 	totalClicks, err := s.repo.GetTotalClicksByUser(ctx, userID)
 	if err != nil {
-		zap.L().Error("Failed to get aggregate total clicks", zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to get aggregate total clicks", zap.Error(err))
 		return nil, response.NewAppError(500, "Internal server error")
 	}
 
 	rows, err := s.repo.GetAggregateStatsByUser(ctx, userID)
 	if err != nil {
-		zap.L().Error("Failed to get aggregate stats", zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to get aggregate stats", zap.Error(err))
 		return nil, response.NewAppError(500, "Internal server error")
 	}
 
-	browsers := make(map[string]int64)
-	devices := make(map[string]int64)
-	countryMap := make(map[string]int64)
-	dateMap := make(map[string]int64)
-
-	for _, row := range rows {
-		if row.Browser.Valid && row.Browser.String != "" {
-			browsers[row.Browser.String] += row.ClickCount
-		}
-		if row.Device.Valid && row.Device.String != "" {
-			devices[row.Device.String] += row.ClickCount
-		}
-		if row.Country.Valid && row.Country.String != "" {
-			countryMap[row.Country.String] += row.ClickCount
-		} else {
-			countryMap["Unknown"] += row.ClickCount
-		}
-		dateStr := row.ClickDate.Format("2006-01-02")
-		dateMap[dateStr] += row.ClickCount
-	}
-
-	topCountries := make([]dto.CountryCount, 0, len(countryMap))
-	for c, cnt := range countryMap {
-		topCountries = append(topCountries, dto.CountryCount{Country: c, Count: cnt})
-	}
-	sort.Slice(topCountries, func(i, j int) bool {
-		return topCountries[i].Count > topCountries[j].Count
-	})
-	if len(topCountries) > 10 {
-		topCountries = topCountries[:10]
-	}
-
-	clicksPerDay := make([]dto.DateCount, 0, len(dateMap))
-	for d, cnt := range dateMap {
-		clicksPerDay = append(clicksPerDay, dto.DateCount{Date: d, Count: cnt})
-	}
-	sort.Slice(clicksPerDay, func(i, j int) bool {
-		return clicksPerDay[i].Date > clicksPerDay[j].Date
-	})
+	clickRows := clickRowsFromAggRows(rows)
 
 	uniqueClicks, err := s.repo.GetUniqueClicksByUser(ctx, userID)
 	if err != nil {
-		zap.L().Error("Failed to get aggregate unique clicks", zap.Error(err))
+		logger.Ctx(ctx).Error("Failed to get aggregate unique clicks", zap.Error(err))
 		uniqueClicks = totalClicks
 	}
 
-	return &dto.StatsResponse{
-		TotalClicks:  totalClicks,
-		UniqueClicks: uniqueClicks,
-		ClicksPerDay: clicksPerDay,
-		TopCountries: topCountries,
-		Browsers:     browsers,
-		Devices:      devices,
-	}, nil
+	return buildStatsResponse(totalClicks, uniqueClicks, clickRows), nil
 }
 
 func (s *URLService) StartExpiryCleaner(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Hour)
+	ticker := time.NewTicker(constants.ExpiryCleanerInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -438,10 +355,10 @@ func (s *URLService) StartExpiryCleaner(ctx context.Context) {
 			err := s.repo.DeleteExpiredURLs(cleanerCtx)
 			cancel()
 			if err != nil {
-				zap.L().Error("Expiry cleaner error", zap.Error(err))
+				logger.Ctx(cleanerCtx).Error("Expiry cleaner error", zap.Error(err))
 				continue
 			}
-			zap.L().Info("Expiry cleaner ran successfully")
+			logger.Ctx(cleanerCtx).Info("Expiry cleaner ran successfully")
 		case <-ctx.Done():
 			return
 		}
