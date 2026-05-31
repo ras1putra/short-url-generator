@@ -8,8 +8,9 @@ import (
 )
 
 type AppError struct {
-	Code    int    `json:"-"`
-	Message string `json:"-"`
+	Code      int    `json:"-"`
+	Message   string `json:"-"`
+	ErrorCode string `json:"-"`
 }
 
 func (e *AppError) Error() string {
@@ -20,10 +21,18 @@ func NewAppError(code int, message string) *AppError {
 	return &AppError{Code: code, Message: message}
 }
 
+func NewAppErrorWithCode(code int, message, errCode string) *AppError {
+	return &AppError{Code: code, Message: message, ErrorCode: errCode}
+}
+
 func HandleError(c *fiber.Ctx, err error, op string) error {
 	var appErr *AppError
 	if errors.As(err, &appErr) {
-		return c.Status(appErr.Code).JSON(fiber.Map{"message": appErr.Message, "data": nil})
+		payload := fiber.Map{"message": appErr.Message, "data": nil}
+		if appErr.ErrorCode != "" {
+			payload["code"] = appErr.ErrorCode
+		}
+		return c.Status(appErr.Code).JSON(payload)
 	}
 
 	requestID, _ := c.Locals("request_id").(string)
@@ -49,7 +58,11 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 
 	if errors.As(err, &appErr) {
 		zap.L().Warn("App error", zap.String("path", c.Path()), zap.Int("code", appErr.Code), zap.String("err", appErr.Message))
-		return c.Status(appErr.Code).JSON(fiber.Map{"message": appErr.Message, "data": nil})
+		payload := fiber.Map{"message": appErr.Message, "data": nil}
+		if appErr.ErrorCode != "" {
+			payload["code"] = appErr.ErrorCode
+		}
+		return c.Status(appErr.Code).JSON(payload)
 	}
 
 	if errors.As(err, &fiberErr) {
@@ -70,6 +83,10 @@ func Created(c *fiber.Ctx, data interface{}, message string) error {
 
 func Unauthorized(c *fiber.Ctx, message string) error {
 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": message, "data": nil})
+}
+
+func UnauthorizedWithCode(c *fiber.Ctx, message, errCode string) error {
+	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": message, "data": nil, "code": errCode})
 }
 
 func Forbidden(c *fiber.Ctx, message string) error {
