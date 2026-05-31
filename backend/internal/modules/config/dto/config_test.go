@@ -15,6 +15,7 @@ func TestConfigResponse_JSON(t *testing.T) {
 		ContractWithdrawer: "0xwithdrawer",
 		TokenSymbol:        "SURL",
 		TokenDecimals:      18,
+		PlatformFee:        0.005,
 		PaymentChain: PaymentChainResponse{
 			ChainID:     31337,
 			ChainName:   "Hardhat",

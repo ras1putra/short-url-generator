@@ -21,5 +21,6 @@ type ConfigResponse struct {
 	ContractWithdrawer string               `json:"contract_withdrawer"`
 	TokenSymbol        string               `json:"token_symbol"`
 	TokenDecimals      int                  `json:"token_decimals"`
+	PlatformFee        float64              `json:"platform_fee"`
 	PaymentChain       PaymentChainResponse `json:"payment_chain"`
 }

@@ -24,6 +24,7 @@ func TestGetConfig(t *testing.T) {
 		ContractWithdrawer: "0xabc",
 		TokenSymbol:     "TST",
 		TokenDecimals:   18,
+		PlatformFee:     0.005,
 		ChainID:         31337,
 		ChainName:       "Hardhat",
 		ChainRPCURL:     "http://localhost:8545",

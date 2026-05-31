@@ -3,6 +3,7 @@ package analytics
 import (
 	"context"
 	"testing"
+	"database/sql"
 	"time"
 
 	"urlshortener/internal/repository"
@@ -24,7 +25,7 @@ func createTestUser(t *testing.T, queries *repository.Queries, ctx context.Conte
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Worker User",
 		Email:    "worker@example.com",
-		Password: "password",
+		Password: sql.NullString{String: "password", Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)

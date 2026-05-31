@@ -24,6 +24,7 @@ func (h *Handler) GetConfig(c *fiber.Ctx) error {
 		ContractWithdrawer: h.cfg.ContractWithdrawer,
 		TokenSymbol:        h.cfg.TokenSymbol,
 		TokenDecimals:      h.cfg.TokenDecimals,
+		PlatformFee:        h.cfg.PlatformFee,
 		PaymentChain: dto.PaymentChainResponse{
 			ChainID:     h.cfg.ChainID,
 			ChainName:   h.cfg.ChainName,
