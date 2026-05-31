@@ -33,32 +33,32 @@ func JWTAuth(secret string, redis cache.Cacher, repo repository.Querier) fiber.H
 	return func(c *fiber.Ctx) error {
 		tokenStr := c.Cookies(constants.CookieAccessToken)
 		if tokenStr == "" {
-			return response.Unauthorized(c, "Missing token")
+			return response.UnauthorizedWithCode(c, "Missing token", "TOKEN_MISSING")
 		}
 
 		claims, err := token.Validate(tokenStr, secret, constants.TokenTypeAccess)
 		if err != nil {
 			clearAuthCookies(c)
-			return response.Unauthorized(c, "Invalid or expired token")
+			return response.UnauthorizedWithCode(c, "Invalid or expired token", "TOKEN_INVALID_OR_EXPIRED")
 		}
 
 		blacklistKey := fmt.Sprintf("%s%s", constants.RedisPrefixBlacklist, tokenStr)
 		blacklisted, _ := redis.Exists(c.Context(), blacklistKey)
 		if blacklisted {
 			clearAuthCookies(c)
-			return response.Unauthorized(c, "Token revoked")
+			return response.UnauthorizedWithCode(c, "Token revoked", "TOKEN_REVOKED")
 		}
 
 		parsedUserID, err := uuid.Parse(claims.UserID)
 		if err != nil {
 			clearAuthCookies(c)
-			return response.Unauthorized(c, "Invalid user ID in token")
+			return response.UnauthorizedWithCode(c, "Invalid user ID in token", "TOKEN_USER_INVALID")
 		}
 
 		user, err := repo.GetUserByID(c.Context(), parsedUserID)
 		if err != nil {
 			clearAuthCookies(c)
-			return response.Unauthorized(c, "User not found")
+			return response.UnauthorizedWithCode(c, "User not found", "USER_NOT_FOUND")
 		}
 
 		c.Locals("user_id", user.ID.String())

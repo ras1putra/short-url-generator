@@ -94,3 +94,31 @@ func TestRateLimiter_RedisError(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 500, resp.StatusCode)
 }
+
+func TestRateLimiter_AuthenticatedUser(t *testing.T) {
+	_ = zap.ReplaceGlobals(zap.NewNop())
+
+	redisCache := testutil.SetupTestRedis(t)
+
+	app := fiber.New(fiber.Config{ErrorHandler: response.ErrorHandler})
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("user_id", "test-user-123")
+		return c.Next()
+	})
+	app.Use(RateLimiter(redisCache, 5))
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return c.SendString("ok")
+	})
+
+	for i := 0; i < 5; i++ {
+		req := httptest.NewRequest("GET", "/test", nil)
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
+	}
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 429, resp.StatusCode)
+}

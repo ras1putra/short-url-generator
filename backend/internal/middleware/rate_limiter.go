@@ -14,9 +14,16 @@ import (
 
 func RateLimiter(redis cache.Cacher, limit int) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		ip := c.IP()
+		keyType := "ip"
+		keyIdentifier := c.IP()
+
+		if userID, ok := c.Locals("user_id").(string); ok {
+			keyType = "user"
+			keyIdentifier = userID
+		}
+
 		now := time.Now().Unix()
-		windowKey := fmt.Sprintf("%s%s:%d", constants.RedisPrefixRateLimit, ip, now/60)
+		windowKey := fmt.Sprintf("%s%s:%s:%d", constants.RedisPrefixRateLimit, keyType, keyIdentifier, now/60)
 
 		count, err := redis.RateLimitIncrement(c.Context(), windowKey, 2*time.Minute)
 		if err != nil {

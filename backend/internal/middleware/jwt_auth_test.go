@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"database/sql"
 	"time"
 
 	"urlshortener/internal/repository"
@@ -29,7 +30,7 @@ func createUserWithRole(t *testing.T, queries *repository.Queries, role string) 
 	user, err := queries.CreateUser(context.Background(), repository.CreateUserParams{
 		Name:     "Test " + role,
 		Email:    role + "-" + uuid.New().String() + "@example.com",
-		Password: "hashed",
+		Password: sql.NullString{String: "hashed", Valid: true},
 		Role:     role,
 	})
 	require.NoError(t, err)
