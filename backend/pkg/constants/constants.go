@@ -74,6 +74,13 @@ const (
 )
 
 const (
+	EmailVerificationTokenTTL = 10 * time.Minute
+	EmailVerificationCooldown = 10 * time.Minute
+	PasswordResetTokenTTL     = 10 * time.Minute
+	PasswordResetCooldown     = 10 * time.Minute
+)
+
+const (
 	DefaultPage        = 1
 	DefaultPerPage     = 5
 	ClaimsPerPage      = 10
@@ -130,9 +137,52 @@ const (
 )
 
 const (
-	TxTypeEarning    = "EARNING"
-	TxTypeAdSpend    = "AD_SPEND"
-	TxTypeDeposit    = "DEPOSIT"
-	TxTypeWithdrawal = "WITHDRAWAL"
-	TxTypeFaucet     = "FAUCET"
+	TxTypeEarning       = "EARNING"
+	TxTypeAdSpend       = "AD_SPEND"
+	TxTypeDeposit       = "DEPOSIT"
+	TxTypeWithdrawal    = "WITHDRAWAL"
+	TxTypeWithdrawalFee = "WITHDRAWAL_FEE"
+	TxTypeFaucet        = "FAUCET"
+)
+
+const (
+	TxStatusPending   = "PENDING"
+	TxStatusConfirmed = "CONFIRMED"
+	TxStatusFailed    = "FAILED"
+)
+
+const (
+	AdEventImpression = "IMPRESSION"
+	AdEventClick      = "CLICK"
+	AdEventCompletion = "COMPLETION"
+	AdEventSkip       = "SKIP"
+)
+
+const (
+	AdTypePopup        = "POPUP"
+	AdTypeBanner       = "BANNER"
+	AdTypeNative       = "NATIVE"
+	AdTypeVideo        = "VIDEO"
+	AdTypeInterstitial = "INTERSTITIAL"
+)
+
+const (
+	QualityScoreDefault = "1.00"
+	QualityScoreSkip    = "0.50"
+)
+
+const (
+	RejectReasonHoneypotHit          = "HONEYPOT_HIT"
+	RejectReasonTooFast              = "TOO_FAST"
+	RejectReasonNoMouseMovement      = "NO_MOUSE_MOVEMENT"
+	RejectReasonDuplicateIP          = "DUPLICATE_IP"
+	RejectReasonDuplicateFingerprint = "DUPLICATE_FINGERPRINT"
+)
+
+const (
+	WSEventWalletUpdate = "WALLET_UPDATE"
+)
+
+const (
+	PlatformReward = "0.00100000"
 )
