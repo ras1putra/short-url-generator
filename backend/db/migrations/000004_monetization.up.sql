@@ -5,6 +5,12 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE transaction_status AS ENUM ('PENDING', 'CONFIRMED', 'FAILED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 ALTER TABLE users ADD COLUMN role user_role NOT NULL DEFAULT 'user';
 
 -- Ad categories with display labels and pricing multipliers
@@ -79,6 +85,7 @@ CREATE TABLE transactions (
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     amount      DECIMAL(20,8) NOT NULL,
     type        VARCHAR(20) NOT NULL, -- 'EARNING', 'AD_SPEND', 'DEPOSIT', 'WITHDRAWAL'
+    status      transaction_status NOT NULL DEFAULT 'CONFIRMED',
     tx_hash     VARCHAR(66) UNIQUE,
     metadata    JSONB,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
