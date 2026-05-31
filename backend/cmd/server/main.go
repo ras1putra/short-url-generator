@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/oschwald/geoip2-golang"
@@ -17,12 +18,14 @@ import (
 	"urlshortener/internal/analytics"
 	"urlshortener/internal/cache"
 	"urlshortener/internal/config"
+	"urlshortener/internal/mailer"
 	"urlshortener/internal/middleware"
 	"urlshortener/internal/modules/ads"
 	"urlshortener/internal/modules/auth"
 	configmodule "urlshortener/internal/modules/config"
 	"urlshortener/internal/modules/links"
 	"urlshortener/internal/modules/media"
+	oauthmodule "urlshortener/internal/modules/oauth"
 	"urlshortener/internal/modules/redirect"
 	walletmodule "urlshortener/internal/modules/wallet"
 	web3module "urlshortener/internal/modules/web3"
@@ -61,7 +64,9 @@ func main() {
 
 	queries := repository.New(db)
 
-	authService := auth.NewAuthService(db, queries, redisClient, cfg)
+	mailerSvc := mailer.New(cfg.ResendAPIKey, cfg.ResendFrom, cfg.FrontendURL)
+
+	authService := auth.NewAuthService(db, queries, redisClient, cfg, mailerSvc)
 	urlService := links.NewURLService(queries, redisClient, cfg)
 	analyticsWorker := analytics.NewAnalyticsWorker(queries, 1000)
 
@@ -82,6 +87,8 @@ func main() {
 	}
 
 	authHandler := auth.NewAuthHandler(authService, cfg)
+	oauthService := oauthmodule.NewOAuthService(db, queries, redisClient, cfg)
+	oauthHandler := oauthmodule.NewOAuthHandler(oauthService, cfg)
 	linksHandler := links.NewLinksHandler(urlService, cfg)
 	redirectSvc := redirect.NewRedirectService(urlService, queries, analyticsWorker, geoDB, cfg, db, redisClient.Raw())
 	redirectHandler := redirect.NewRedirectHandler(redirectSvc)
@@ -92,7 +99,7 @@ func main() {
 		zap.L().Fatal("Failed to initialize withdrawer service", zap.Error(err))
 	}
 
-	walletSvc := walletmodule.NewWalletService(queries, db, withdrawerSvc)
+	walletSvc := walletmodule.NewWalletService(queries, db, withdrawerSvc, cfg.PlatformFee)
 	walletHandler := walletmodule.NewWalletHandler(walletSvc)
 
 	adSvc := ads.NewAdService(db, queries)
@@ -121,7 +128,7 @@ func main() {
 
 	depositHandler := web3module.NewDepositHandlerImpl(db, queries)
 	depositListener := web3client.NewListener(ethClient, cfg.ContractPayment, depositHandler, cfg.IsDev())
-	web3Svc := web3module.NewWeb3Service(queries, ethClient, faucetSvc)
+	web3Svc := web3module.NewWeb3Service(queries, ethClient, faucetSvc, redisClient.Raw())
 	web3Handler := web3module.NewWeb3Handler(web3Svc, cfg.IsDev())
 
 	configHandler := configmodule.NewHandler(cfg)
@@ -155,24 +162,33 @@ func main() {
 	app.Get("/api/r/:slug/complete/:adID", redirectHandler.AdComplete)
 	app.Get("/api/links/:slug/qr", linksHandler.QRCode)
 
-	api := app.Group("/api")
+	api := app.Group("/api", middleware.RateLimiter(redisClient, cfg.RateLimitDefault))
 
 	api.Get("/config", configHandler.GetConfig)
 	api.Get("/categories", adHandler.ListCategories)
 	api.Get("/ads/types", adHandler.ListAdTypes)
 
-	authGroup := api.Group("/auth")
+	authGroup := api.Group("/auth", middleware.RateLimiter(redisClient, cfg.RateLimitAuth))
 	authGroup.Post("/register", authHandler.Register)
 	authGroup.Post("/login", authHandler.Login)
 	authGroup.Post("/refresh", authHandler.Refresh)
+	authGroup.Post("/send-verification", authHandler.SendVerification)
+	authGroup.Post("/verify-email", authHandler.VerifyEmail)
+	authGroup.Post("/forgot-password", authHandler.ForgotPassword)
+	authGroup.Post("/reset-password", authHandler.ResetPassword)
+	authGroup.Get("/google/login", oauthHandler.Login)
+	authGroup.Get("/google/callback", oauthHandler.Callback)
 
-	protectedAuthGroup := authGroup.Group("/", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries))
-	protectedAuthGroup.Post("/logout", authHandler.Logout)
-	protectedAuthGroup.Post("/upgrade", authHandler.UpgradeToAdvertiser)
+	authGroup.Post("/logout", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), authHandler.Logout)
+	authGroup.Get("/me", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), authHandler.Me)
+	authGroup.Post("/upgrade", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), authHandler.UpgradeToAdvertiser)
+	authGroup.Post("/downgrade", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), authHandler.DowngradeToUser)
 
-	walletGroup := api.Group("/wallet", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries))
+	walletGroup := api.Group("/wallet", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), middleware.RateLimiter(redisClient, cfg.RateLimitWithdrawal))
 	walletGroup.Get("", walletHandler.GetWallet)
 	walletGroup.Post("/withdraw", walletHandler.RequestWithdraw)
+	walletGroup.Post("/pending", walletHandler.CreatePendingTransaction)
+	walletGroup.Get("/ws", websocket.New(walletHandler.ConnectWebSocket))
 
 	faucetGroup := api.Group("/faucet", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries))
 	faucetGroup.Post("/claim", middleware.RateLimiter(redisClient, cfg.RateLimitCreate), web3Handler.ClaimFaucet)
@@ -181,7 +197,7 @@ func main() {
 	faucetGroup.Get("/status", web3Handler.DepositStatus)
 	faucetGroup.Get("/history", web3Handler.GetFaucetHistory)
 
-	adsGroup := api.Group("/ads", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), middleware.RequireRole(constants.RoleAdvertiser, constants.RoleAdmin))
+	adsGroup := api.Group("/ads", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), middleware.RequireRole(constants.RoleAdvertiser, constants.RoleAdmin), middleware.RateLimiter(redisClient, cfg.RateLimitMedia))
 	adsGroup.Post("/", adHandler.Create)
 	adsGroup.Get("/", adHandler.List)
 	adsGroup.Get("/:id", adHandler.GetByID)
@@ -190,7 +206,7 @@ func main() {
 	adsGroup.Get("/:id/stats", adHandler.GetStats)
 	adsGroup.Post("/:id/topup", adHandler.TopUp)
 
-	mediaGroup := api.Group("/media", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), middleware.RequireRole(constants.RoleAdvertiser, constants.RoleAdmin))
+	mediaGroup := api.Group("/media", middleware.JWTAuth(cfg.JWTAccessSecret, redisClient, queries), middleware.RequireRole(constants.RoleAdvertiser, constants.RoleAdmin), middleware.RateLimiter(redisClient, cfg.RateLimitMedia))
 	mediaGroup.Post("/upload", mediaHandler.Upload)
 	mediaGroup.Post("/crop-video", mediaHandler.CropVideo)
 
@@ -203,6 +219,9 @@ func main() {
 	linksGroup.Get("/:slug/stats", linksHandler.Stats)
 	linksGroup.Patch("/:slug", linksHandler.Update)
 	linksGroup.Delete("/:slug", linksHandler.Delete)
+
+	// Start WebSocket Wallet Notification Hub
+	go walletmodule.GlobalHub.Start(ctx)
 
 	go func() {
 		addr := ":" + cfg.Port
