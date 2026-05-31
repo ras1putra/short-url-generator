@@ -20,7 +20,7 @@ type Web3Servicer interface {
 	ClaimFaucet(ctx context.Context, userID uuid.UUID, walletAddr string) (*dto.FaucetClaimResponse, error)
 	ConfirmFaucet(ctx context.Context, userID uuid.UUID, req *dto.FaucetConfirmRequest) (*dto.FaucetConfirmResponse, error)
 	ClaimDevETH(ctx context.Context, walletAddr string) (string, error)
-	GetFaucetHistory(ctx context.Context, userID uuid.UUID, page, limit int32) ([]dto.FaucetHistoryItem, int64, error)
+	GetFaucetHistory(ctx context.Context, userID uuid.UUID, page, limit int32, q, sortBy, sortDir string) ([]dto.FaucetHistoryItem, int64, error)
 	GetDepositStatus(ctx context.Context) (*dto.DepositStatusResponse, error)
 }
 
@@ -103,7 +103,11 @@ func (h *Web3Handler) GetFaucetHistory(c *fiber.Ctx) error {
 		limit = constants.ClaimsPerPage
 	}
 
-	history, total, err := h.svc.GetFaucetHistory(c.Context(), userID, int32(page), int32(limit))
+	q := c.Query("q", "")
+	sortBy := c.Query("sort_by", "claimed_at")
+	sortDir := c.Query("sort_dir", "desc")
+
+	history, total, err := h.svc.GetFaucetHistory(c.Context(), userID, int32(page), int32(limit), q, sortBy, sortDir)
 	if err != nil {
 		logger.Ctx(c.UserContext()).Error("GetFaucetHistory failed: service layer error", zap.Error(err))
 		return response.HandleError(c, err, "GetFaucetHistory")
@@ -115,6 +119,9 @@ func (h *Web3Handler) GetFaucetHistory(c *fiber.Ctx) error {
 		zap.Int("page", page),
 		zap.Int("per_page", limit),
 		zap.Int64("total", total),
+		zap.String("q", q),
+		zap.String("sort_by", sortBy),
+		zap.String("sort_dir", sortDir),
 	)
 
 	return response.OK(c, dto.FaucetHistoryResponse{

@@ -1,7 +1,7 @@
 package dto
 
 type FaucetClaimRequest struct {
-	WalletAddr string `json:"wallet_addr" validate:"required,min=42,max=42"`
+	WalletAddr string `json:"wallet_addr" validate:"required,eth_addr"`
 }
 
 type FaucetClaimResponse struct {
@@ -15,8 +15,8 @@ type FaucetClaimResponse struct {
 }
 
 type FaucetConfirmRequest struct {
-	TxHash     string `json:"tx_hash" validate:"required,min=66,max=66"`
-	WalletAddr string `json:"wallet_addr" validate:"required,min=42,max=42"`
+	TxHash     string `json:"tx_hash" validate:"required,eth_tx_hash"`
+	WalletAddr string `json:"wallet_addr" validate:"required,eth_addr"`
 }
 
 type FaucetConfirmResponse struct {
