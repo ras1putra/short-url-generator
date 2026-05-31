@@ -6,6 +6,7 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+const RETRYABLE_CODES = ['TOKEN_MISSING', 'TOKEN_INVALID_OR_EXPIRED', 'TOKEN_REVOKED'];
 const RETRYABLE_MESSAGES = ['Missing token', 'Invalid or expired token'];
 let refreshPromise: Promise<void> | null = null;
 
@@ -14,20 +15,20 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
+    const code = error.response?.data?.code as string | undefined;
     const message = error.response?.data?.message as string | undefined;
 
     if (
       status === 401 &&
       !originalRequest._retry &&
-      message &&
-      RETRYABLE_MESSAGES.includes(message)
+      ((code && RETRYABLE_CODES.includes(code)) || (message && RETRYABLE_MESSAGES.includes(message)))
     ) {
       originalRequest._retry = true;
       try {
         if (!refreshPromise) {
           refreshPromise = api
             .post(API_AUTH_REFRESH)
-            .then(() => {})
+            .then(() => { })
             .finally(() => {
               refreshPromise = null;
             });

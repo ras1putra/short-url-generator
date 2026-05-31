@@ -20,6 +20,10 @@ export interface AdStats {
   impressions: number;
   clicks: number;
   completions: number;
+  valid_completions: number;
+  invalid_completions: number;
+  skips: number;
+  avg_quality_score: number;
 }
 
 export interface Wallet {
@@ -28,6 +32,10 @@ export interface Wallet {
   frozen?: number;
   updated_at: string;
   transactions: Transaction[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
 }
 
 export interface Transaction {
@@ -35,6 +43,7 @@ export interface Transaction {
   user_id: string;
   amount: number;
   type: string;
+  status: "PENDING" | "CONFIRMED" | "FAILED";
   tx_hash?: string;
   metadata?: unknown;
   created_at: string;
@@ -50,6 +59,14 @@ export interface CreateAdPayload {
   ad_type: string;
 }
 
+export interface CampaignListResponse {
+  campaigns: Ad[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
 export interface UpdateAdPayload {
   title?: string;
   description?: string;
@@ -59,13 +76,4 @@ export interface UpdateAdPayload {
   status?: string;
   total_budget?: number;
   ad_type?: string;
-}
-
-export interface PendingTransaction {
-  tx_hash: string;
-  amount: number;
-  created_at: string;
-  type: "DEPOSIT" | "WITHDRAWAL" | "APPROVE";
-  confirmations: number;
-  target_confirmations: number;
 }

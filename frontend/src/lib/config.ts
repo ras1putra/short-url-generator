@@ -17,5 +17,6 @@ export interface AppConfig {
   contract_withdrawer?: string;
   token_symbol: string;
   token_decimals: number;
+  platform_fee?: number;
   payment_chain: ChainConfig;
 }

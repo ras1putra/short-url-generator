@@ -29,3 +29,9 @@ export function classifyWalletError(err: unknown, context: "connect" | "deposit"
   if (originalMsg) return originalMsg;
   return context === "connect" ? "Failed to connect wallet" : "Transaction failed";
 }
+
+export function formatBalance(val: any): string {
+  const num = Number(val || 0);
+  return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+}
+

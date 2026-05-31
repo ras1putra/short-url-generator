@@ -29,6 +29,14 @@ export const API_AUTH_LOGIN = "/api/auth/login";
 export const API_AUTH_REGISTER = "/api/auth/register";
 export const API_AUTH_LOGOUT = "/api/auth/logout";
 export const API_AUTH_REFRESH = "/api/auth/refresh";
+export const API_AUTH_UPGRADE = "/api/auth/upgrade";
+export const API_AUTH_DOWNGRADE = "/api/auth/downgrade";
+export const API_AUTH_GOOGLE_LOGIN = "/api/auth/google/login";
+export const API_AUTH_ME = "/api/auth/me";
+export const API_AUTH_SEND_VERIFICATION = "/api/auth/send-verification";
+export const API_AUTH_VERIFY_EMAIL = "/api/auth/verify-email";
+export const API_AUTH_FORGOT_PASSWORD = "/api/auth/forgot-password";
+export const API_AUTH_RESET_PASSWORD = "/api/auth/reset-password";
 export const API_LINKS = "/api/links";
 export const API_ADS = "/api/ads";
 export const API_MEDIA_UPLOAD = "/api/media/upload";
@@ -45,6 +53,9 @@ export const API_WALLET = "/api/wallet";
 export const ROUTE_LOGIN = "/login";
 export const ROUTE_REGISTER = "/register";
 export const ROUTE_REGISTER_ADVERTISER = "/register/advertiser";
+export const ROUTE_FORGOT_PASSWORD = "/forgot-password";
+export const ROUTE_RESET_PASSWORD = "/reset-password";
+export const ROUTE_VERIFY_EMAIL = "/verify-email";
 export const ROUTE_DASHBOARD = "/dashboard";
 export const ROUTE_CAMPAIGNS = "/dashboard/campaigns";
 export const ROUTE_LINKS = "/dashboard/links";
@@ -76,3 +87,35 @@ export const CONTENT_TYPE_WEBM = "video/webm";
 
 // Confirmations
 export const BLOCK_CONFIRMATIONS = 12;
+
+// Ad Statuses
+export const AD_STATUS_ACTIVE = "active";
+export const AD_STATUS_PAUSED = "paused";
+export const AD_STATUS_DELETED = "deleted";
+
+// Transaction Statuses
+export const TX_STATUS_PENDING = "PENDING";
+export const TX_STATUS_CONFIRMED = "CONFIRMED";
+export const TX_STATUS_FAILED = "FAILED";
+
+// Transaction Types
+export const TX_TYPE_EARNING = "EARNING";
+export const TX_TYPE_AD_EARNING = "AD_EARNING";
+export const TX_TYPE_AD_SPEND = "AD_SPEND";
+export const TX_TYPE_DEPOSIT = "DEPOSIT";
+export const TX_TYPE_WITHDRAWAL = "WITHDRAWAL";
+export const TX_TYPE_WITHDRAWAL_FEE = "WITHDRAWAL_FEE";
+export const TX_TYPE_FAUCET = "FAUCET";
+
+// Ad Rejection Reasons
+export const REJECT_REASON_HONEYPOT_HIT = "HONEYPOT_HIT";
+export const REJECT_REASON_TOO_FAST = "TOO_FAST";
+export const REJECT_REASON_NO_MOUSE_MOVEMENT = "NO_MOUSE_MOVEMENT";
+export const REJECT_REASON_DUPLICATE_IP = "DUPLICATE_IP";
+export const REJECT_REASON_DUPLICATE_FINGERPRINT = "DUPLICATE_FINGERPRINT";
+
+// Ad Event Types
+export const AD_EVENT_IMPRESSION = "IMPRESSION";
+export const AD_EVENT_CLICK = "CLICK";
+export const AD_EVENT_COMPLETION = "COMPLETION";
+export const AD_EVENT_SKIP = "SKIP";

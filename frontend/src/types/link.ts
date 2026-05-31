@@ -1,3 +1,5 @@
+import type { FormattedEntry } from "@/lib/stats-utils";
+
 export interface Link {
   short_url: string;
   original: string;
@@ -25,4 +27,27 @@ export interface LinkStats {
   top_countries: { country: string; count: number }[];
   browsers: Record<string, number>;
   devices: Record<string, number>;
+  events: AdEventItem[];
+  event_pagination?: EventPagination;
+  formatted?: {
+    browsers: FormattedEntry[];
+    devices: FormattedEntry[];
+  };
+}
+
+export interface EventPagination {
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+export interface AdEventItem {
+  time: string;
+  event_type: string;
+  ad_title: string;
+  ad_type: string;
+  is_valid: boolean;
+  quality_score: string;
+  rejection_reason?: string;
 }

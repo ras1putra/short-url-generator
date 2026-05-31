@@ -71,8 +71,25 @@ export const createAdSchema = z.object({
   image_url: z.string().min(1, "Ad creative media file is required"),
   target_url: z.url("Must be a valid URL"),
   category: z.string().min(1, "Category is required"),
-  total_budget: z.number().min(1, "Minimum budget is $1"),
+  total_budget: z.number().min(1, "Minimum budget is 1"),
   ad_type: z.string().min(1, "Ad format type is required"),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.email("Invalid email address"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Reset token is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Confirm password must be at least 6 characters"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+export const sendVerificationSchema = z.object({
+  email: z.email("Invalid email address"),
 });
 
 export type CreateAdForm = z.infer<typeof createAdSchema>;
