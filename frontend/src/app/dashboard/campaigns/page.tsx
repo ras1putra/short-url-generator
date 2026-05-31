@@ -5,7 +5,7 @@ import { useAds, useCreateAd, useDeleteAd, useAdTypes } from "@/hooks/useAds";
 import { useWallet } from "@/hooks/wallet/useWallet";
 import { useConfigStore } from "@/store/useConfigStore";
 import { useCategories } from "@/hooks/useCategories";
-import { Megaphone, Plus, Loader2, Trash2, BarChart3, X } from "lucide-react";
+import { Megaphone, Plus, Trash2, BarChart3, X, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -15,16 +15,128 @@ import { createAdSchema, CreateAdForm } from "@/lib/validators";
 import {
   ROLE_ADVERTISER,
   ROLE_ADMIN,
+  DEFAULT_PAGE_SIZE,
 } from "@/lib/constants";
-
+import DataTable, { Column } from "@/components/ui/DataTable";
+import type { Ad as AdType } from "@/types/ads";
+import { formatBalance } from "@/lib/wallet";
 
 export default function CampaignsPage() {
-  const { data: campaigns, isLoading } = useAds();
   const deleteAd = useDeleteAd();
   const [showCreate, setShowCreate] = useState(false);
   const { data: wallet } = useWallet();
   const cfg = useConfigStore((s) => s.config);
   const symbol = cfg?.token_symbol || "SURL";
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(DEFAULT_PAGE_SIZE);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortDir, setSortDir] = useState("desc");
+  const { data: campaignsData, isLoading, isFetching } = useAds(page, perPage, search || undefined, sortBy, sortDir);
+  const campaigns = campaignsData?.campaigns || [];
+  const totalPages = campaignsData?.total_pages || 1;
+  const total = campaignsData?.total || 0;
+
+  const handleSort = (columnId: string) => {
+    setPage(1);
+    if (sortBy === columnId) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(columnId);
+      setSortDir("desc");
+    }
+  };
+
+  const columns: Column<AdType>[] = [
+    {
+      header: "Campaign",
+      accessorKey: "title",
+      sortable: true,
+      cell: (ad) => (
+        <div>
+          <p className="text-white font-medium">{ad.title}</p>
+          {ad.description && (
+            <p className="text-white/40 text-sm truncate max-w-xs">{ad.description}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "Category",
+      accessorKey: "category",
+      cell: (ad) => (
+        <span className="text-white/60 text-sm capitalize">{ad.category}</span>
+      ),
+    },
+    {
+      header: "Budget",
+      accessorKey: "total_budget",
+      sortable: true,
+      sortId: "budget",
+      className: "text-right",
+      cell: (ad) => (
+        <div className="text-right">
+          <p className="text-white font-mono-dm">{formatBalance(ad.remaining_budget)} {symbol}</p>
+          <p className="text-white/30 text-xs font-mono-dm">of {formatBalance(ad.total_budget)} {symbol}</p>
+        </div>
+      ),
+    },
+    {
+      header: "CPM",
+      accessorKey: "cpm",
+      sortable: true,
+      className: "text-right",
+      cell: (ad) => (
+        <div className="text-right text-white/60 font-mono-dm">
+          {formatBalance(ad.cpm)} {symbol}
+        </div>
+      ),
+    },
+    {
+      header: "Status",
+      accessorKey: "status",
+      sortable: true,
+      className: "text-center",
+      cell: (ad) => (
+        <div className="flex justify-center">
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${ad.status === "active"
+            ? "bg-green-500/15 text-green-400 ring-1 ring-green-500/25"
+            : ad.status === "paused"
+              ? "bg-yellow-500/15 text-yellow-400 ring-1 ring-yellow-500/25"
+              : "bg-white/10 text-white/50 ring-1 ring-white/20"
+            }`}>
+            {ad.status}
+          </span>
+        </div>
+      ),
+    },
+    {
+      header: "Actions",
+      className: "text-right",
+      cell: (ad) => (
+        <div className="flex justify-end gap-3">
+          <Link
+            href={`/dashboard/campaigns/${ad.id}`}
+            className="text-[#22D3EE] hover:text-[#67E8F9] transition-colors"
+            title="View Details"
+          >
+            <BarChart3 className="h-5 w-5" />
+          </Link>
+          <button
+            onClick={() => deleteAd.mutate(ad.id, {
+              onSuccess: () => toast.success("Campaign deleted"),
+              onError: (err) => toast.error(err.response?.data?.message || "Delete failed"),
+            })}
+            className="text-white/40 hover:text-red-400 transition-colors cursor-pointer disabled:opacity-50"
+            title="Delete"
+            disabled={deleteAd.isPending}
+          >
+            <Trash2 className="h-5 w-5" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <RequireRole roles={[ROLE_ADVERTISER, ROLE_ADMIN]}>
@@ -60,92 +172,37 @@ export default function CampaignsPage() {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="animate-spin h-8 w-8 text-white/30" />
-        </div>
-      ) : campaigns && campaigns.length > 0 ? (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/[0.06]">
-              <thead className="bg-white/[0.02]">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">Campaign</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">Category</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">Budget</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">CPM</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">Status</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.06]">
-                {campaigns.map((ad) => (
-                  <tr key={ad.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-white font-medium">{ad.title}</p>
-                        {ad.description && (
-                          <p className="text-white/40 text-sm truncate max-w-xs">{ad.description}</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-white/60 text-sm capitalize">{ad.category}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <p className="text-white font-mono-dm">{Number(ad.remaining_budget).toFixed(2)} {symbol}</p>
-                      <p className="text-white/30 text-xs font-mono-dm">of {Number(ad.total_budget).toFixed(2)} {symbol}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-white/60 font-mono-dm">
-                      {Number(ad.cpm).toFixed(2)} {symbol}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${ad.status === "active"
-                        ? "bg-green-500/15 text-green-400 ring-1 ring-green-500/25"
-                        : ad.status === "paused"
-                          ? "bg-yellow-500/15 text-yellow-400 ring-1 ring-yellow-500/25"
-                          : "bg-white/10 text-white/50 ring-1 ring-white/20"
-                        }`}>
-                        {ad.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end gap-3">
-                        <Link
-                          href={`/dashboard/campaigns/${ad.id}`}
-                          className="text-[#22D3EE] hover:text-[#67E8F9] transition-colors"
-                          title="View Details"
-                        >
-                          <BarChart3 className="h-5 w-5" />
-                        </Link>
-                        <button
-                          onClick={() => deleteAd.mutate(ad.id, {
-                            onSuccess: () => toast.success("Campaign deleted"),
-                            onError: (err) => toast.error(err.response?.data?.message || "Delete failed"),
-                          })}
-                          className="text-white/40 hover:text-red-400 transition-colors cursor-pointer disabled:opacity-50"
-                          title="Delete"
-                          disabled={deleteAd.isPending}
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-12 text-center">
-          <Megaphone size={40} className="mx-auto mb-4 text-white/20" />
-          <h2 className="text-xl font-bold text-white/60 mb-2">No campaigns yet</h2>
-          <p className="text-white/40 text-sm max-w-md mx-auto">
-            Create your first campaign to start advertising.
-          </p>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={campaigns}
+        isLoading={isLoading}
+        isFetching={isFetching}
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSort={handleSort}
+        page={page}
+        totalPages={totalPages}
+        totalItems={total}
+        onPageChange={setPage}
+        perPage={perPage}
+        onPerPageChange={(p) => {
+          setPerPage(p);
+          setPage(1);
+        }}
+        searchPlaceholder="Search campaigns..."
+        searchValue={search}
+        onSearchChange={(val) => {
+          setSearch(val);
+          setPage(1);
+        }}
+        emptyIcon={<Megaphone size={40} />}
+        emptyTitle={search ? "No campaigns match your search" : "No campaigns yet"}
+        emptyDescription={
+          search
+            ? "Try adjusting your search to find what you're looking for."
+            : "Create your first campaign to start advertising."
+        }
+      />
     </RequireRole>
   );
 }
@@ -207,9 +264,13 @@ function CreateCampaignForm({ onSuccess, walletBalance, symbol }: CreateCampaign
     setValue("category", fallback, { shouldValidate: true });
   }, [categories, category, setValue]);
 
+  useEffect(() => {
+    setValue("image_url", "", { shouldValidate: false });
+  }, [adType, setValue]);
+
   const onSubmit = (data: CreateAdForm) => {
     if (Number(data.total_budget) > walletBalance) {
-      toast.error(`Insufficient platform balance. Your wallet balance is only ${walletBalance.toFixed(2)} ${symbol}, but you entered a campaign budget of ${Number(data.total_budget).toFixed(2)} ${symbol}.`);
+      toast.error(`Insufficient platform balance. Your wallet balance is only ${formatBalance(walletBalance)} ${symbol}, but you entered a campaign budget of ${formatBalance(data.total_budget)} ${symbol}.`);
       return;
     }
 
@@ -229,7 +290,7 @@ function CreateCampaignForm({ onSuccess, walletBalance, symbol }: CreateCampaign
       <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-4">
         <span className="text-xs text-white/40 font-mono-dm">{"// platform billing wallet"}</span>
         <span className="text-xs font-bold font-mono text-[#22D3EE]">
-          Available Balance: {walletBalance.toFixed(2)} {symbol}
+          Available Balance: {formatBalance(walletBalance)} {symbol}
         </span>
       </div>
 
@@ -250,6 +311,19 @@ function CreateCampaignForm({ onSuccess, walletBalance, symbol }: CreateCampaign
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-[#22D3EE] mb-2 uppercase tracking-widest font-mono-dm">Ad Format Type</label>
+          <select {...register("ad_type")} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all">
+            {adTypes && adTypes.length > 0 ? (
+              adTypes.map((t) => (
+                <option key={t.ad_type} value={t.ad_type} className="bg-[#0A0A0A]">{t.label}</option>
+              ))
+            ) : (
+              <option className="bg-[#0A0A0A]">Loading ad formats...</option>
+            )}
+          </select>
         </div>
 
         <div>
@@ -275,22 +349,10 @@ function CreateCampaignForm({ onSuccess, walletBalance, symbol }: CreateCampaign
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-[#22D3EE] mb-2 uppercase tracking-widest font-mono-dm">Ad Format Type</label>
-            <select {...register("ad_type")} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all">
-              {adTypes && adTypes.length > 0 ? (
-                adTypes.map((t) => (
-                  <option key={t.ad_type} value={t.ad_type} className="bg-[#0A0A0A]">{t.label}</option>
-                ))
-              ) : (
-                <option className="bg-[#0A0A0A]">Loading ad formats...</option>
-              )}
-            </select>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-[#22D3EE] mb-2 uppercase tracking-widest font-mono-dm">Total Budget ({symbol})</label>
-            <input type="number" step="0.01" {...register("total_budget", { valueAsNumber: true })} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white placeholder-white/20 focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all" placeholder="100.00" />
+            <input type="number" step="1" min="1" onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()} {...register("total_budget", { valueAsNumber: true })} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white placeholder-white/20 focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all" placeholder="100" />
             {errors.total_budget && <p className="mt-1 text-xs text-red-400">{errors.total_budget.message}</p>}
           </div>
           <div>

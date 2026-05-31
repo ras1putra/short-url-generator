@@ -4,8 +4,10 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUserStore } from "@/store/useUserStore";
+import { useCurrentUser } from "@/hooks/useAuth";
 import ProfileDropdown from "@/components/dashboard/ProfileDropdown";
 import { Link2, Megaphone, Wallet, Shield, Droplets } from "lucide-react";
+import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { 
   ROLE_USER, 
   ROLE_ADVERTISER, 
@@ -37,6 +39,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const user = useUserStore((state) => state.user);
   const role = user?.role || ROLE_USER;
+
+  useCurrentUser();
 
   const visibleNav = NAV_ITEMS.filter((item) => item.roles.includes(role));
 
@@ -84,7 +88,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </nav>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 md:px-12 py-8">
-        {children}
+        <WebSocketProvider>
+          {children}
+        </WebSocketProvider>
       </main>
     </div>
   );

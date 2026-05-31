@@ -35,8 +35,7 @@ export default function GlobeView({ points, height = 420 }: GlobeViewProps) {
     return () => window.removeEventListener("resize", updateWidth);
   }, [updateWidth]);
 
-  const handleGlobeReady = () => {
-    setReady(true);
+  const handleGlobeReady = useCallback(() => {
     if (globeEl.current) {
       globeEl.current.pointOfView({ lat: 20, lng: 0, altitude: 2.2 }, 2000);
       const controls = globeEl.current.controls();
@@ -45,7 +44,8 @@ export default function GlobeView({ points, height = 420 }: GlobeViewProps) {
       controls.enableDamping = true;
       controls.dampingFactor = 0.1;
     }
-  };
+    Promise.resolve().then(() => setReady(true));
+  }, []);
 
   const globeMaterial = useMemo(() => {
     const mat = new THREE.MeshPhongMaterial({

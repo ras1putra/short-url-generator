@@ -8,10 +8,11 @@ import { format } from "date-fns";
 import { MediaUploader } from "@/components/campaigns/MediaUploader";
 import { useCategories } from "@/hooks/useCategories";
 
-import { ROUTE_CAMPAIGNS } from "@/lib/constants";
+import { ROUTE_CAMPAIGNS, AD_STATUS_ACTIVE } from "@/lib/constants";
 import { useConfigStore } from "@/store/useConfigStore";
 import { isVideoUrl, isGifUrl } from "@/lib/media";
 import { useAdTypes } from "@/hooks/useAds";
+import { formatBalance } from "@/lib/wallet";
 
 export default function CampaignDetailClient({ id }: { id: string }) {
   const cfg = useConfigStore((s) => s.config);
@@ -100,7 +101,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
               className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
             >
               {updateAd.isPending ? <Loader2 className="animate-spin h-4 w-4" /> : null}
-              {ad.status === "active" ? "Pause" : "Activate"}
+              {ad.status === AD_STATUS_ACTIVE ? "Pause" : "Activate"}
             </button>
           </div>
         </div>
@@ -122,22 +123,9 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                   preload="metadata"
                   className="absolute inset-0 w-full h-full rounded-lg object-cover pointer-events-none"
                 />
-                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-[10px] font-mono text-cyan-400">
-                  <FileVideo size={10} />
-                  VIDEO AD
-                </div>
-              </div>
-            ) : isGifUrl(imageUrl) ? (
-              <div className="relative w-full h-full">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl}
-                  alt={ad?.title || "Campaign"}
-                  className="absolute inset-0 w-full h-full rounded-lg object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-[10px] font-mono text-cyan-400">
-                  <ImageIcon size={10} />
-                  GIF AD
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-xs font-mono text-cyan-400">
+                  <FileVideo size={12} />
+                  <span>VIDEO AD</span>
                 </div>
               </div>
             ) : (
@@ -147,12 +135,9 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                   src={imageUrl}
                   alt={ad?.title || "Campaign"}
                   className="absolute inset-0 w-full h-full rounded-lg object-cover transition-transform duration-500 group-hover:scale-105"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop";
-                  }}
                 />
-                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-[10px] font-mono text-cyan-400">
-                  <ImageIcon size={10} />
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-xs font-mono text-cyan-400">
+                  <ImageIcon size={12} />
                   IMAGE AD
                 </div>
               </div>
@@ -177,17 +162,43 @@ export default function CampaignDetailClient({ id }: { id: string }) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { label: "Impressions", value: stats?.impressions || 0, color: "text-[#22D3EE]" },
           { label: "Clicks", value: stats?.clicks || 0, color: "text-green-400" },
           { label: "Completions", value: stats?.completions || 0, color: "text-yellow-400" },
+          { label: "Skips", value: stats?.skips || 0, color: "text-white/50" },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+          <div key={stat.label} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
             <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-2">{stat.label}</p>
-            <p className={`text-3xl font-black ${stat.color}`}>{stat.value.toLocaleString()}</p>
+            <p className={`text-2xl font-black ${stat.color}`}>{stat.value.toLocaleString()}</p>
           </div>
         ))}
+      </div>
+
+      {/* Quality Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-5">
+          <p className="text-xs font-bold text-green-400/70 uppercase tracking-widest font-mono-dm mb-2">Valid</p>
+          <p className="text-2xl font-black text-green-400">{stats?.valid_completions?.toLocaleString() || "0"}</p>
+        </div>
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
+          <p className="text-xs font-bold text-red-400/70 uppercase tracking-widest font-mono-dm mb-2">Invalid</p>
+          <p className="text-2xl font-black text-red-400">{stats?.invalid_completions?.toLocaleString() || "0"}</p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-2">Avg Quality Score</p>
+          <p className="text-2xl font-black text-white/80">{(stats?.avg_quality_score || 0).toFixed(2)}</p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-2">CTR</p>
+          <p className="text-2xl font-black text-[#22D3EE]">
+            {stats?.impressions && stats.impressions > 0
+              ? `${((stats.clicks / stats.impressions) * 100).toFixed(2)}%`
+              : "0%"}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -251,7 +262,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                   <div>
                     <label className="block text-xs font-bold text-white/40 mb-2 uppercase tracking-widest font-mono-dm">Platform CPM ({symbol})</label>
                     <div className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2.5 text-white/70 font-mono sm:text-sm leading-relaxed">
-                      <span>{storedCpm.toFixed(2)} {symbol}</span>
+                      <span>{formatBalance(storedCpm)} {symbol}</span>
                     </div>
                   </div>
                 </div>
@@ -292,15 +303,15 @@ export default function CampaignDetailClient({ id }: { id: string }) {
               </div>
               <div>
                 <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Total Budget</p>
-                <span className="text-white/60 font-mono-dm">{Number(ad.total_budget).toFixed(2)} {symbol}</span>
+                <span className="text-white/60 font-mono-dm">{formatBalance(ad.total_budget)} {symbol}</span>
               </div>
               <div>
                 <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Remaining Budget</p>
-                <span className="text-white/60 font-mono-dm">{Number(ad.remaining_budget).toFixed(2)} {symbol}</span>
+                <span className="text-white/60 font-mono-dm">{formatBalance(ad.remaining_budget)} {symbol}</span>
               </div>
               <div>
                 <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">CPM</p>
-                <span className="text-white/60 font-mono-dm">{Number(ad.cpm).toFixed(2)} {symbol}</span>
+                <span className="text-white/60 font-mono-dm">{formatBalance(ad.cpm)} {symbol}</span>
               </div>
               <div className="md:col-span-2">
                 <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Description</p>
@@ -341,7 +352,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                 </label>
                 {wallet && (
                   <span className="text-xs text-white/40">
-                    Wallet: {Number(wallet.balance).toFixed(2)} {symbol}
+                    Wallet: {formatBalance(wallet.balance)} {symbol}
                   </span>
                 )}
               </div>
@@ -351,6 +362,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                   step="any"
                   min="0.01"
                   required
+                  onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
                   value={topUpVal}
                   onChange={(e) => setTopUpVal(e.target.value)}
                   placeholder="0.00"
