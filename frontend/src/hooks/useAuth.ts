@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { loginSchema, registerSchema, advertiserRegisterSchema } from "@/lib/validators";
 import { z } from "zod";
@@ -8,19 +8,19 @@ import { toast } from "sonner";
 import { useUserStore } from "@/store/useUserStore";
 import { useRouter } from "next/navigation";
 
-import { ROLE_ADVERTISER, ROLE_ADMIN, API_AUTH_LOGIN, API_AUTH_REGISTER, API_AUTH_LOGOUT, ROUTE_CAMPAIGNS, ROUTE_ADMIN_DASHBOARD, ROUTE_LINKS, ROUTE_LOGIN } from "@/lib/constants";
+import { ROLE_ADVERTISER, ROLE_ADMIN, API_AUTH_LOGIN, API_AUTH_REGISTER, API_AUTH_LOGOUT, API_AUTH_UPGRADE, API_AUTH_DOWNGRADE, API_AUTH_ME, API_AUTH_SEND_VERIFICATION, API_AUTH_VERIFY_EMAIL, API_AUTH_FORGOT_PASSWORD, API_AUTH_RESET_PASSWORD, ROUTE_CAMPAIGNS, ROUTE_ADMIN_DASHBOARD, ROUTE_LINKS, ROUTE_LOGIN } from "@/lib/constants";
 
 type LoginForm = z.infer<typeof loginSchema>;
 
 type RegisterForm = z.infer<typeof registerSchema>;
 type AdvertiserRegisterForm = z.infer<typeof advertiserRegisterSchema>;
 
-type AuthResponse = { data: { access_token: string; refresh_token: string; user: { id: string; email: string; name: string; role: string; created_at: string } } };
+type AuthResponse = { data: { access_token: string; refresh_token: string; user: { id: string; email: string; name: string; role: string; email_verified: boolean; created_at: string } } };
 
 export function useLogin() {
   const router = useRouter();
   const setUser = useUserStore((state) => state.setUser);
-  
+
   return useMutation<AuthResponse, AxiosError<ApiErrorResponse>, LoginForm>({
     mutationFn: async (data: LoginForm) => {
       const response = await api.post<AuthResponse>(API_AUTH_LOGIN, data);
@@ -33,6 +33,7 @@ export function useLogin() {
         email: user.email,
         name: user.name,
         role: user.role,
+        email_verified: user.email_verified,
         created_at: user.created_at,
       });
       toast.success("Welcome back!");
@@ -75,11 +76,137 @@ export function useRegisterAdvertiser() {
   });
 }
 
+export function useUpgrade() {
+  const setUser = useUserStore((state) => state.setUser);
+
+  return useMutation<AuthResponse, AxiosError<ApiErrorResponse>, void>({
+    mutationFn: async () => {
+      const response = await api.post<AuthResponse>(API_AUTH_UPGRADE);
+      return response.data;
+    },
+    onSuccess: (res) => {
+      const { user } = res.data;
+      setUser({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        email_verified: user.email_verified,
+        created_at: user.created_at,
+      });
+      toast.success("Account upgraded to advertiser!");
+    },
+  });
+}
+
+export function useDowngrade() {
+  const setUser = useUserStore((state) => state.setUser);
+
+  return useMutation<AuthResponse, AxiosError<ApiErrorResponse>, void>({
+    mutationFn: async () => {
+      const response = await api.post<AuthResponse>(API_AUTH_DOWNGRADE);
+      return response.data;
+    },
+    onSuccess: (res) => {
+      const { user } = res.data;
+      setUser({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        email_verified: user.email_verified,
+        created_at: user.created_at,
+      });
+      toast.success("Account downgraded to regular user. Your ads have been paused.");
+    },
+  });
+}
+
+export function useCurrentUser() {
+  const setUser = useUserStore((state) => state.setUser);
+
+  return useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const res = await api.get(API_AUTH_ME);
+      const u = res.data.data;
+      setUser({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        email_verified: u.email_verified,
+        created_at: u.created_at,
+      });
+      return u;
+    },
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+export function useSendVerification() {
+  return useMutation<void, AxiosError<ApiErrorResponse>, { email: string }>({
+    mutationFn: async (data: { email: string }) => {
+      await api.post(API_AUTH_SEND_VERIFICATION, data);
+    },
+    onSuccess: () => {
+      toast.success("Verification email sent. Check your inbox.");
+    },
+  });
+}
+
+export function useVerifyEmail() {
+  const router = useRouter();
+  return useMutation<void, AxiosError<ApiErrorResponse>, { token: string }>({
+    mutationFn: async (data: { token: string }) => {
+      await api.post(API_AUTH_VERIFY_EMAIL + "?token=" + data.token);
+    },
+    onSuccess: () => {
+      toast.success("Email verified! You can now sign in.");
+      router.push(ROUTE_LOGIN);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Verification failed");
+    },
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation<void, AxiosError<ApiErrorResponse>, { email: string }>({
+    mutationFn: async (data: { email: string }) => {
+      await api.post(API_AUTH_FORGOT_PASSWORD, data);
+    },
+    onSuccess: () => {
+      toast.success("If that email is registered, a reset link has been sent.");
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to send reset email");
+    },
+  });
+}
+
+export function useResetPassword() {
+  const router = useRouter();
+  return useMutation<void, AxiosError<ApiErrorResponse>, { token: string; password: string }>({
+    mutationFn: async (data: { token: string; password: string }) => {
+      await api.post(API_AUTH_RESET_PASSWORD, data);
+    },
+    onSuccess: () => {
+      toast.success("Password reset! Please sign in.");
+      router.push(ROUTE_LOGIN);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to reset password");
+    },
+  });
+}
+
 export function useLogout() {
   const router = useRouter();
   const clearUser = useUserStore((state) => state.clearUser);
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async () => {
       await api.post(API_AUTH_LOGOUT);
@@ -89,7 +216,11 @@ export function useLogout() {
     },
     onSettled: () => {
       clearUser();
-      queryClient.clear();
+      queryClient.setQueryData(["current-user"], null);
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] !== "current-user",
+      });
+
       router.push(ROUTE_LOGIN);
     },
   });

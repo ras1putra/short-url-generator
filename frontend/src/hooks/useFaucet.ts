@@ -72,13 +72,15 @@ export interface FaucetHistoryResponse {
   total_pages: number;
 }
 
-export function useFaucetHistory(page: number = 1, perPage: number = 10) {
+export function useFaucetHistory(page: number = 1, perPage: number = 10, search?: string, sortBy?: string, sortDir?: string) {
   return useQuery({
-    queryKey: ["faucet-history", page, perPage],
+    queryKey: ["faucet-history", page, perPage, search, sortBy, sortDir],
     queryFn: async () => {
-      const response = await api.get<ApiResponse<FaucetHistoryResponse>>(API_FAUCET_HISTORY, {
-        params: { page, per_page: perPage },
-      });
+      const params: Record<string, string | number> = { page, per_page: perPage };
+      if (search) params.q = search;
+      if (sortBy && sortBy !== "claimed_at") params.sort_by = sortBy;
+      if (sortDir && sortDir !== "desc") params.sort_dir = sortDir;
+      const response = await api.get<ApiResponse<FaucetHistoryResponse>>(API_FAUCET_HISTORY, { params });
       return response.data.data;
     },
   });

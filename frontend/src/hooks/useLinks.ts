@@ -1,19 +1,30 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { AxiosError } from "axios";
 import { ApiResponse, ApiErrorResponse } from "@/types/api";
 import { Link, ListResponse } from "@/types/link";
 import { API_LINKS } from "@/lib/constants";
 
-export function useLinksQuery(page: number = 1, perPage: number = 5) {
+export function useLinksQuery(
+  page: number = 1,
+  perPage: number = 5,
+  search?: string,
+  isMonetized?: boolean,
+  sortBy?: string,
+  sortDir?: string,
+) {
   return useQuery({
-    queryKey: ["links", page, perPage],
+    queryKey: ["links", page, perPage, search, isMonetized, sortBy, sortDir],
     queryFn: async () => {
-      const response = await api.get<ApiResponse<ListResponse>>(API_LINKS, {
-        params: { page, per_page: perPage },
-      });
+      const params: Record<string, unknown> = { page, per_page: perPage };
+      if (search) params.q = search;
+      if (isMonetized !== undefined) params.is_monetized = isMonetized;
+      if (sortBy && sortBy !== "created_at") params.sort_by = sortBy;
+      if (sortDir && sortDir !== "desc") params.sort_dir = sortDir;
+      const response = await api.get<ApiResponse<ListResponse>>(API_LINKS, { params });
       return response.data.data;
     },
+    placeholderData: keepPreviousData,
   });
 }
 

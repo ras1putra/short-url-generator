@@ -69,24 +69,12 @@ export function useDeposit() {
         transport: custom(provider as EIP1193Provider),
       });
 
-      const account = address as `0x${string}` | undefined;
+      const accounts = await connector.getAccounts();
+      const account = accounts[0] as `0x${string}` | undefined;
       if (!account) throw new Error("No account found");
 
       const amountBig = parseEther(amountInETH);
 
-      // Pre-flight Check: Verify SURL balance in wallet
-      const balance = await publicClient.readContract({
-        address: cfg.contract_token as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: "balanceOf",
-        args: [account],
-      });
-
-      if (balance < amountBig) {
-        throw new Error(`Insufficient SURL balance in your wallet. You have ${(Number(balance) / 1e18).toFixed(2)} SURL, but tried to deposit ${amountInETH} SURL.`);
-      }
-
-      // Pre-flight Check: Query current PaymentGateway allowance
       const currentAllowance = await publicClient.readContract({
         address: cfg.contract_token as `0x${string}`,
         abi: ERC20_ABI,
@@ -94,7 +82,6 @@ export function useDeposit() {
         args: [account, cfg.contract_payment as `0x${string}`],
       });
 
-      // Conditional Approval: Only approve if allowance is insufficient
       if (currentAllowance < amountBig) {
         const approveHash = await walletClient.writeContract({
           address: cfg.contract_token as `0x${string}`,
