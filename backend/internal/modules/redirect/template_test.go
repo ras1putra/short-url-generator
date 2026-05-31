@@ -167,7 +167,8 @@ func TestRenderInterstitial_NoAds(t *testing.T) {
 	result := RenderInterstitial([]repository.Ad{}, url, "bridge-token-xyz", uuid.Nil)
 	assert.Contains(t, result, `https://example.com/dest`)
 	assert.Contains(t, result, `bridge-token-xyz`)
-	assert.Contains(t, result, `Place Your Ads Here`)
+	assert.Contains(t, result, `Boost Your Reach Instantly`)
+	assert.Contains(t, result, `Start Advertising`)
 }
 
 func TestRenderInterstitial_WithAds(t *testing.T) {

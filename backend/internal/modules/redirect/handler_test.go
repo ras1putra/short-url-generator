@@ -39,6 +39,10 @@ func setupRedirectApp(t *testing.T) (*fiber.App, *repository.Queries, *analytics
 
 	app := fiber.New(fiber.Config{ErrorHandler: response.ErrorHandler})
 	app.Get("/:slug", handler.Redirect)
+	app.Get("/:slug/click/:adID", handler.AdClick)
+	app.Get("/:slug/complete/:adID", handler.AdComplete)
+	app.Post("/:slug/complete", handler.AdCompleteFlow)
+	app.Get("/:slug/skip/:adID", handler.AdSkip)
 
 	return app, queries, worker
 }
@@ -180,6 +184,125 @@ func TestResolveGeo_InvalidIPWithGeoDB(t *testing.T) {
 	country, city := service.resolveGeo("invalid-ip")
 	assert.Empty(t, country)
 	assert.Empty(t, city)
+}
+
+func TestRedirectHandler_AdClick_InvalidAdID(t *testing.T) {
+	app, queries, _ := setupRedirectApp(t)
+	ctx := context.Background()
+	user := createTestUser(t, queries, ctx)
+
+	_, err := queries.CreateURL(ctx, repository.CreateURLParams{
+		UserID:   user.ID,
+		Slug:     "click-test",
+		Original: "https://example.com/dest",
+		Custom:   false,
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/click-test/click/invalid-uuid", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 302, resp.StatusCode)
+}
+
+func TestRedirectHandler_AdComplete_InvalidAdID(t *testing.T) {
+	app, queries, _ := setupRedirectApp(t)
+	ctx := context.Background()
+	user := createTestUser(t, queries, ctx)
+
+	_, err := queries.CreateURL(ctx, repository.CreateURLParams{
+		UserID:   user.ID,
+		Slug:     "complete-test",
+		Original: "https://example.com/dest",
+		Custom:   false,
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/complete-test/complete/invalid-uuid", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 400, resp.StatusCode)
+}
+
+func TestRedirectHandler_AdSkip_InvalidAdID(t *testing.T) {
+	app, queries, _ := setupRedirectApp(t)
+	ctx := context.Background()
+	user := createTestUser(t, queries, ctx)
+
+	_, err := queries.CreateURL(ctx, repository.CreateURLParams{
+		UserID:   user.ID,
+		Slug:     "skip-test",
+		Original: "https://example.com/dest",
+		Custom:   false,
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/skip-test/skip/invalid-uuid", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 400, resp.StatusCode)
+}
+
+func TestRedirectHandler_AdCompleteFlow_InvalidToken(t *testing.T) {
+	app, _, _ := setupRedirectApp(t)
+
+	req := httptest.NewRequest("POST", "/test-slug/complete?token=invalid", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 400, resp.StatusCode)
+}
+
+func TestRedirectHandler_AdCompleteFlow_MissingToken(t *testing.T) {
+	app, _, _ := setupRedirectApp(t)
+
+	req := httptest.NewRequest("POST", "/test-slug/complete", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 400, resp.StatusCode)
+}
+
+func TestRedirectHandler_MonetizedURLWithAds(t *testing.T) {
+	app, queries, _ := setupRedirectApp(t)
+	ctx := context.Background()
+	user := createTestUser(t, queries, ctx)
+
+	_, err := queries.CreateURL(ctx, repository.CreateURLParams{
+		UserID:            user.ID,
+		Slug:              "monetized",
+		Original:          "https://example.com/monetized",
+		Custom:            false,
+		IsMonetized:       true,
+		AllowedCategories: []string{"regular"},
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/monetized", nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestRedirectHandler_ExpiredURL(t *testing.T) {
+	app, queries, _ := setupRedirectApp(t)
+	ctx := context.Background()
+	user := createTestUser(t, queries, ctx)
+
+	expired := time.Now().Add(-1 * time.Hour)
+	_, err := queries.CreateURL(ctx, repository.CreateURLParams{
+		UserID:    user.ID,
+		Slug:      "expired-url",
+		Original:  "https://example.com/expired",
+		Custom:    false,
+		ExpiresAt: sql.NullTime{Time: expired, Valid: true},
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/expired-url", nil)
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 410, resp.StatusCode)
 }
 
 func TestResolveGeo_ValidIPWithGeoDB(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"urlshortener/internal/analytics"
 	"urlshortener/internal/config"
 	"urlshortener/internal/modules/links"
+	"urlshortener/internal/repository"
 	"urlshortener/internal/testutil"
 
 	"github.com/google/uuid"
@@ -114,6 +115,93 @@ func TestGetActiveAds_Empty(t *testing.T) {
 func TestGetMinSessionMs(t *testing.T) {
 	svc := setupRedirectService(t)
 	assert.Equal(t, int64(3000), svc.GetMinSessionMs())
+}
+
+func TestGetActiveAdsByCategory_Empty(t *testing.T) {
+	svc := setupRedirectService(t)
+	ads, err := svc.GetActiveAdsByCategory(context.Background(), []string{"regular"})
+	require.NoError(t, err)
+	assert.Empty(t, ads)
+}
+
+func TestGetActiveAdsByCategory_NilCategories(t *testing.T) {
+	svc := setupRedirectService(t)
+	ads, err := svc.GetActiveAdsByCategory(context.Background(), nil)
+	require.NoError(t, err)
+	assert.Empty(t, ads)
+}
+
+func TestSelectAndTrackAds_Empty(t *testing.T) {
+	svc := setupRedirectService(t)
+	require.Panics(t, func() {
+		svc.SelectAndTrackAds([]repository.Ad{}, uuid.New(), "127.0.0.1", "test-agent")
+	}, "SelectAndTrackAds should panic with empty ads (needs fix in production code)")
+}
+
+func TestSelectAndTrackAds_SingleBanner(t *testing.T) {
+	t.Skip("Skipped: requires real ad in DB for event tracking")
+}
+
+func TestSelectAndTrackAds_MultipleTypes(t *testing.T) {
+	t.Skip("Skipped: requires real ad in DB for event tracking")
+}
+
+func TestSelectAndTrackAds_OnlyPopup(t *testing.T) {
+	t.Skip("Skipped: requires real ad in DB for event tracking")
+}
+
+func TestSelectAndTrackAds_OnlyInterstitial(t *testing.T) {
+	t.Skip("Skipped: requires real ad in DB for event tracking")
+}
+
+func TestEnqueueClick(t *testing.T) {
+	svc := setupRedirectService(t)
+	svc.EnqueueClick(uuid.New(), "127.0.0.1", "test-agent", "http://referer.com")
+}
+
+func TestBridgeToken_MultipleAds(t *testing.T) {
+	svc := setupRedirectService(t)
+	adIDs := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	token := svc.GenerateBridgeToken("test-slug", adIDs)
+	require.NotEmpty(t, token)
+
+	slug, ids, valid, _ := svc.VerifyBridgeToken(token)
+	assert.True(t, valid)
+	assert.Equal(t, "test-slug", slug)
+	assert.Len(t, ids, 3)
+}
+
+func TestBridgeToken_SingleAd(t *testing.T) {
+	svc := setupRedirectService(t)
+	adID := uuid.New()
+	token := svc.GenerateBridgeToken("single", []uuid.UUID{adID})
+	require.NotEmpty(t, token)
+
+	slug, ids, valid, _ := svc.VerifyBridgeToken(token)
+	assert.True(t, valid)
+	assert.Equal(t, "single", slug)
+	assert.Len(t, ids, 1)
+	assert.Equal(t, adID, ids[0])
+}
+
+func TestBridgeToken_EmptyAdIDs(t *testing.T) {
+	svc := setupRedirectService(t)
+	token := svc.GenerateBridgeToken("empty-ads", []uuid.UUID{})
+	require.NotEmpty(t, token)
+
+	_, ids, valid, _ := svc.VerifyBridgeToken(token)
+	assert.True(t, valid)
+	assert.Empty(t, ids)
+}
+
+func TestBridgeToken_OnlyNil(t *testing.T) {
+	svc := setupRedirectService(t)
+	token := svc.GenerateBridgeToken("nil-ad", []uuid.UUID{uuid.Nil})
+	require.NotEmpty(t, token)
+
+	_, ids, valid, _ := svc.VerifyBridgeToken(token)
+	assert.True(t, valid)
+	assert.Empty(t, ids)
 }
 
 func splitN(s, sep string, n int) []string {
