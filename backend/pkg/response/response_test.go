@@ -24,6 +24,82 @@ func TestNewAppError(t *testing.T) {
 	assert.Equal(t, "not found", err.Error())
 }
 
+func TestNewAppErrorWithCode(t *testing.T) {
+	err := NewAppErrorWithCode(403, "forbidden", "FORBIDDEN_ACCESS")
+	assert.Equal(t, 403, err.Code)
+	assert.Equal(t, "forbidden", err.Message)
+	assert.Equal(t, "FORBIDDEN_ACCESS", err.ErrorCode)
+}
+
+func TestHandleError_AppErrorWithCode(t *testing.T) {
+	app := setupApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return HandleError(c, NewAppErrorWithCode(403, "forbidden", "FORBIDDEN_ACCESS"), "TestOp")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 403, resp.StatusCode)
+
+	var body map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&body)
+	assert.Equal(t, "forbidden", body["message"])
+	assert.Equal(t, "FORBIDDEN_ACCESS", body["code"])
+}
+
+func TestErrorHandler_AppErrorWithCode(t *testing.T) {
+	app := setupApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return NewAppErrorWithCode(429, "too many requests", "RATE_LIMITED")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 429, resp.StatusCode)
+
+	var body map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&body)
+	assert.Equal(t, "too many requests", body["message"])
+	assert.Equal(t, "RATE_LIMITED", body["code"])
+}
+
+func TestUnauthorizedWithCode(t *testing.T) {
+	app := fiber.New()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return UnauthorizedWithCode(c, "token expired", "TOKEN_EXPIRED")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 401, resp.StatusCode)
+
+	var body map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&body)
+	assert.Equal(t, "token expired", body["message"])
+	assert.Equal(t, "TOKEN_EXPIRED", body["code"])
+}
+
+func TestHandleError_AppErrorWithEmptyCode(t *testing.T) {
+	app := setupApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return HandleError(c, NewAppError(409, "conflict"), "TestOp")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, 409, resp.StatusCode)
+
+	var body map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&body)
+	assert.Equal(t, "conflict", body["message"])
+	assert.Nil(t, body["data"])
+	assert.NotContains(t, body, "code")
+}
+
 func TestHandleError_AppError(t *testing.T) {
 	app := setupApp()
 	app.Get("/test", func(c *fiber.Ctx) error {
