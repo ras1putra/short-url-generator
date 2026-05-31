@@ -1,6 +1,9 @@
 package redirect
 
-import "urlshortener/internal/repository"
+import (
+	"urlshortener/internal/repository"
+	"urlshortener/pkg/constants"
+)
 
 type AdGroups struct {
 	Popup        []repository.Ad
@@ -14,15 +17,15 @@ func GroupAds(ads []repository.Ad) AdGroups {
 	var g AdGroups
 	for _, ad := range ads {
 		switch ad.AdType {
-		case "POPUP":
+		case constants.AdTypePopup:
 			g.Popup = append(g.Popup, ad)
-		case "BANNER":
+		case constants.AdTypeBanner:
 			g.Banner = append(g.Banner, ad)
-		case "NATIVE":
+		case constants.AdTypeNative:
 			g.Native = append(g.Native, ad)
-		case "VIDEO":
+		case constants.AdTypeVideo:
 			g.Video = append(g.Video, ad)
-		case "INTERSTITIAL":
+		case constants.AdTypeInterstitial:
 			g.Interstitial = append(g.Interstitial, ad)
 		}
 	}

@@ -50,7 +50,7 @@ func createHandlerTestUser(t *testing.T, queries *repository.Queries, ctx contex
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Test User",
 		Email:    "test-" + uuid.New().String() + "@example.com",
-		Password: "password",
+		Password: sql.NullString{String: "password", Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)

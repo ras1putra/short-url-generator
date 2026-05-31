@@ -7,153 +7,11 @@ import (
 	"github.com/google/uuid"
 
 	"urlshortener/internal/repository"
+	"urlshortener/pkg/constants"
 )
 
 func RenderInterstitial(ads []repository.Ad, url repository.Url, bridgeToken string, primaryAdID uuid.UUID) string {
 	targetURL := url.Original
-
-	if len(ads) == 0 {
-		token := bridgeToken
-		return fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Redirecting...</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
-.placeholder{background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:48px 32px;text-align:center;max-width:400px;width:100%%;aspect-ratio:5/6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;box-shadow:0 20px 40px -15px rgba(0,0,0,0.06)}
-.placeholder h2{font-size:16px;font-weight:500;color:#64748b;letter-spacing:.04em;text-transform:uppercase}
-.placeholder a{display:inline-block;padding:10px 24px;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;background:linear-gradient(135deg,#4b5563,#1f2937);color:#fff;box-shadow:0 4px 20px rgba(0,0,0,.25);transition:opacity 0.2s}
-.placeholder a:hover{opacity:0.9}
-.countdown-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
-.ring-wrap{position:relative;width:72px;height:72px}
-.ring-wrap svg{transform:rotate(-90deg)}
-.ring-bg{fill:none;stroke:#e2e8f0;stroke-width:4}
-.ring-fg{fill:none;stroke:url(#grad);stroke-width:4;stroke-linecap:round;stroke-dasharray:201;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear}
-.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;color:#0f172a}
-.countdown-sub{font-size:12px;color:#64748b;letter-spacing:.03em}
-
-/* Anti-adblock wall */
-#adblock-wall{display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.95);backdrop-filter:blur(12px);align-items:center;justify-content:center;padding:24px;text-align:center;color:#fff;font-family:'DM Sans',sans-serif}
-#adblock-wall.show{display:flex}
-#adblock-wall .wall-content{max-width:420px}
-#adblock-wall h2{font-size:22px;font-weight:700;margin-bottom:12px}
-#adblock-wall p{font-size:14px;color:rgba(255,255,255,.7);margin-bottom:24px;line-height:1.6}
-#adblock-wall .wall-icon{font-size:48px;margin-bottom:16px}
-.bait-el{position:absolute;left:-9999px;width:1px;height:1px;pointer-events:none;opacity:.01}
-</style>
-</head>
-<body>
-<div id="adblock-wall"><div class="wall-content"><div class="wall-icon">&#128274;</div><h2>Ad Blocker Detected</h2><p>Please disable your ad blocker to continue. This helps keep content free for everyone.</p></div></div>
-<div class="placeholder">
-  <h2>Place Your Ads Here</h2>
-  <a href="/" target="_blank" rel="noopener">Advertise Here</a>
-  <div class="countdown-wrap">
-    <div class="ring-wrap">
-      <svg width="72" height="72" viewBox="0 0 72 72">
-        <defs>
-          <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%%" stop-color="#4b5563"/>
-            <stop offset="100%%" stop-color="#111827"/>
-          </linearGradient>
-        </defs>
-        <circle class="ring-bg" cx="36" cy="36" r="32"/>
-        <circle class="ring-fg" id="ring" cx="36" cy="36" r="32"/>
-      </svg>
-      <div class="ring-label" id="countdown">5</div>
-    </div>
-    <div class="countdown-sub">Redirecting soon</div>
-  </div>
-</div>
-
-<div class="bait-el" id="baitAdContainer"></div>
-<div class="bait-el" id="baitSponsored"></div>
-<button id="honeypot-btn" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:.01" onclick="void(0)"></button>
-
-<script>
-(function(){
-  var wall=document.getElementById('adblock-wall');
-  var baits=['baitAdContainer','baitSponsored'];
-  var blocked=false;
-  var mm=0,honeypotHit=false;
-
-  document.addEventListener('mousemove',function(){mm++});
-  document.getElementById('honeypot-btn').addEventListener('click',function(){honeypotHit=true});
-
-  function getFP(){
-    var parts=[screen.width+'x'+screen.height,screen.colorDepth,navigator.language,navigator.platform,new Date().getTimezoneOffset()];
-    try{
-      var c=document.createElement('canvas');c.width=200;c.height=50;
-      var cx=c.getContext('2d');cx.textBaseline='top';cx.font='14px Arial';
-      cx.fillText('fp'+navigator.userAgent.length,2,2);cx.strokeStyle='#f60';
-      cx.strokeRect(0,0,50,50);parts.push(c.toDataURL().length);
-    }catch(e){}
-    var s=parts.join('|'),h=0;
-    for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}
-    return h.toString(36);
-  }
-  var fp=getFP();
-
-  function checkBaits(){
-    baits.forEach(function(id){
-      var el=document.getElementById(id);
-      if(!el){blocked=true;return}
-      var cs=getComputedStyle(el);
-      if(cs.display==='none'||cs.visibility==='hidden'||parseFloat(cs.opacity)<0.1){blocked=true}
-    });
-    if(blocked&&wall)wall.classList.add('show');
-  }
-
-  setTimeout(checkBaits,500);
-
-  var obs=new MutationObserver(function(){
-    baits.forEach(function(id){
-      if(!document.getElementById(id))blocked=true
-    });
-    if(blocked&&wall)wall.classList.add('show');
-  });
-  obs.observe(document.body,{childList:true, subtree:true});
-
-  var total=5,s=total,ring=document.getElementById('ring'),cd=document.getElementById('countdown');
-  var circ=2*Math.PI*32;
-  ring.style.strokeDasharray=circ;
-  ring.style.strokeDashoffset=0;
-  var targetURL=%q;
-  var bridgeToken=%q;
-
-  function complete(){
-    cd.textContent='…';
-    var x=new XMLHttpRequest();
-    x.open('POST','/api/r/'+encodeURIComponent(bridgeToken.split(':')[0])+'/complete?token='+encodeURIComponent(bridgeToken),true);
-    x.setRequestHeader('Content-Type','application/json');
-    x.onload=function(){
-      if(x.status===200){
-        var r=JSON.parse(x.responseText);
-        if(r.success)window.location.href=r.destination_url;
-      }
-    };
-    x.onerror=function(){window.location.href=targetURL};
-    x.send(JSON.stringify({fingerprint:fp,honeypot_hit:honeypotHit,mouse_moves:mm}));
-  }
-
-  function tick(){
-    if(blocked)return;
-    s--;
-    var pct=s/total;
-    ring.style.strokeDashoffset=circ*(1-pct);
-    if(cd)cd.textContent=s;
-    if(s<=0)complete();
-  }
-  setInterval(tick,1000);
-})();
-</script>
-</body>
-</html>`, targetURL, token)
-	}
-
 	g := GroupAds(ads)
 
 	var popupHTML string
@@ -211,7 +69,8 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 .popup-card .popup-progress .popup-progress-bar{height:100%%;width:100%%;background:linear-gradient(90deg,#e5e7eb,#9ca3af);transform-origin:left center;transform:scaleX(1);transition:transform 1s linear}
 .popup-card .popup-close{position:absolute;top:12px;right:12px;z-index:10;width:32px;height:32px;border-radius:50%%;border:none;background:rgba(0,0,0,.05);color:#475569;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .2s,color .2s;backdrop-filter:blur(8px)}
 .popup-card .popup-close:hover{background:rgba(0,0,0,.12);color:#0f172a}
-.popup-card .popup-media{display:block;width:100%%;height:100%%;object-fit:cover}
+.popup-card .popup-media{display:block;width:100%%;height:100%%}
+.popup-card .popup-media img,.popup-card .popup-media video{width:100%%;height:100%%;object-fit:cover}
 
 /* ── Main layout ── */
 #main-content{width:100%%;max-width:1100px;height:100vh;padding:16px;display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr 1fr auto;gap:12px;margin:0 auto}
@@ -279,7 +138,6 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 #adblock-wall h2{font-size:22px;font-weight:700;margin-bottom:12px}
 #adblock-wall p{font-size:14px;color:rgba(255,255,255,.7);margin-bottom:24px;line-height:1.6}
 #adblock-wall .wall-icon{font-size:48px;margin-bottom:16px}
-.bait-el{position:absolute;left:-9999px;width:1px;height:1px;pointer-events:none;opacity:.01}
 </style>
 </head>
 <body>
@@ -313,15 +171,11 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
   </div>
 </div>
 
-<div class="bait-el" id="baitAdContainer"></div>
-<div class="bait-el" id="baitSponsored"></div>
-<div class="bait-el" id="baitAdLabel"></div>
 <button id="honeypot-btn" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:.01" onclick="void(0)"></button>
 
 <script>
 (function(){
   var wall=document.getElementById('adblock-wall');
-  var baitIds=['baitAdContainer','baitSponsored','baitAdLabel'];
   var blocked=false;
   var mm=0,honeypotHit=false;
 
@@ -342,6 +196,12 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
   }
   var fp=getFP();
 
+  var adScript = document.createElement('script');
+  adScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
+  adScript.async = true;
+  adScript.onerror = function(){blocked=true};
+  document.head.appendChild(adScript);
+
   function postComplete(cb){
     var x=new XMLHttpRequest();
     x.open('POST','/api/r/'+encodeURIComponent(bridgeToken.split(':')[0])+'/complete?token='+encodeURIComponent(bridgeToken),true);
@@ -357,26 +217,6 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
     x.send(JSON.stringify({fingerprint:fp,honeypot_hit:honeypotHit,mouse_moves:mm}));
   }
 
-  function checkBaits(){
-    baitIds.forEach(function(id){
-      var el=document.getElementById(id);
-      if(!el){blocked=true;return}
-      var cs=getComputedStyle(el);
-      if(cs.display==='none'||cs.visibility==='hidden'||parseFloat(cs.opacity)<0.1){blocked=true}
-    });
-    if(blocked&&wall){wall.classList.add('show')}
-  }
-
-  setTimeout(checkBaits,500);
-
-  var obs=new MutationObserver(function(){
-    baitIds.forEach(function(id){
-      if(!document.getElementById(id))blocked=true
-    });
-    if(blocked&&wall)wall.classList.add('show');
-  });
-  obs.observe(document.body,{childList:true, subtree:true});
-
   var popupTotal=10,ps=popupTotal,pc=document.getElementById('popup-countdown'),pb=document.getElementById('popup-close-btn'),ppb=document.getElementById('popup-progress-bar');
   if(pc){pc.textContent='Skip in '+ps+'s'}
   if(pc){var pi=setInterval(function(){ps--;if(pc)pc.textContent='Skip in '+Math.max(ps,0)+'s';if(ppb){var pct=Math.max(ps,0)/popupTotal;ppb.style.transform='scaleX('+pct+')'}if(ps<=0){clearInterval(pi);if(pc)pc.style.display='none';if(pb)pb.style.display='flex'}},1000)}
@@ -386,6 +226,7 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
     if(overlay)overlay.classList.add('hidden');
     startMainCountdown();
   }
+  window.closePopup=closePopup;
 
   var total=15,t=total;
   var ring=document.getElementById('footer-ring');
@@ -450,7 +291,7 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 }
 
 func adMediaTag(url, adType string) string {
-	isVideo := strings.HasPrefix(adType, "VIDEO") || strings.HasSuffix(url, ".mp4") || strings.HasSuffix(url, ".webm")
+	isVideo := strings.HasPrefix(adType, constants.AdTypeVideo) || strings.HasSuffix(url, ".mp4") || strings.HasSuffix(url, ".webm")
 	if isVideo {
 		return fmt.Sprintf(`<video src="%s" autoplay muted loop playsinline webkit-playsinline></video>`, url)
 	}

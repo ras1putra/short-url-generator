@@ -71,10 +71,37 @@ type ListResponse struct {
 }
 
 type StatsResponse struct {
-	TotalClicks  int64              `json:"total_clicks"`
-	UniqueClicks int64              `json:"unique_clicks"`
-	ClicksPerDay []DateCount        `json:"clicks_per_day"`
-	TopCountries []CountryCount     `json:"top_countries"`
-	Browsers     map[string]int64   `json:"browsers"`
-	Devices      map[string]int64   `json:"devices"`
+	TotalClicks     int64               `json:"total_clicks"`
+	UniqueClicks    int64               `json:"unique_clicks"`
+	ClicksPerDay    []DateCount         `json:"clicks_per_day"`
+	TopCountries    []CountryCount      `json:"top_countries"`
+	Browsers        map[string]int64    `json:"browsers"`
+	Devices         map[string]int64    `json:"devices"`
+	Events          []AdEventItem       `json:"events"`
+	EventPagination *EventPaginationInfo `json:"event_pagination,omitempty"`
+}
+
+type EventPaginationInfo struct {
+	Total      int64 `json:"total"`
+	Page       int   `json:"page"`
+	PerPage    int   `json:"per_page"`
+	TotalPages int   `json:"total_pages"`
+}
+
+type AdEventItem struct {
+	Time            string `json:"time"`
+	EventType       string `json:"event_type"`
+	AdTitle         string `json:"ad_title"`
+	AdType          string `json:"ad_type"`
+	IsValid         bool   `json:"is_valid"`
+	QualityScore    string `json:"quality_score"`
+	RejectionReason string `json:"rejection_reason,omitempty"`
+}
+
+type AdEventListResponse struct {
+	Events     []AdEventItem `json:"events"`
+	Total      int64         `json:"total"`
+	Page       int           `json:"page"`
+	PerPage    int           `json:"per_page"`
+	TotalPages int           `json:"total_pages"`
 }

@@ -36,7 +36,7 @@ func createTestUser(t *testing.T, queries *repository.Queries, ctx context.Conte
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     name,
 		Email:    email,
-		Password: "hashed",
+		Password: sql.NullString{String: "hashed", Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestURLService_ListByUser_Success(t *testing.T) {
 	createTestURL(t, queries, ctx, user.ID, "abc1", "https://example.com/1")
 	createTestURL(t, queries, ctx, user.ID, "abc2", "https://example.com/2")
 
-	result, err := svc.ListByUser(ctx, user.ID, 1, 10)
+	result, err := svc.ListByUser(ctx, user.ID, 1, 10, "", nil, "created_at", "desc")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, int64(2), result.Total)
@@ -226,7 +226,7 @@ func TestURLService_ListByUser_Pagination(t *testing.T) {
 		createTestURL(t, queries, ctx, user.ID, uuid.New().String()[:6], "https://example.com/"+uuid.New().String())
 	}
 
-	result, err := svc.ListByUser(ctx, user.ID, 3, 5)
+	result, err := svc.ListByUser(ctx, user.ID, 3, 5, "", nil, "created_at", "desc")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, int64(15), result.Total)

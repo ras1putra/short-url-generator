@@ -38,34 +38,35 @@ func setupRedirectService(t *testing.T) *RedirectService {
 func TestGenerateAndVerifyBridgeToken(t *testing.T) {
 	svc := setupRedirectService(t)
 	slug := "abc123"
-	adID := uuid.New()
+	adID1 := uuid.New()
+	adID2 := uuid.New()
 
-	token := svc.GenerateBridgeToken(slug, adID)
+	token := svc.GenerateBridgeToken(slug, []uuid.UUID{adID1, adID2})
 	require.NotEmpty(t, token)
 
-	parsedSlug, parsedAdID, valid, ms := svc.VerifyBridgeToken(token)
+	parsedSlug, parsedAdIDs, valid, ms := svc.VerifyBridgeToken(token)
 	assert.True(t, valid)
 	assert.Equal(t, slug, parsedSlug)
-	assert.Equal(t, adID, parsedAdID)
+	assert.Equal(t, []uuid.UUID{adID1, adID2}, parsedAdIDs)
 	assert.Greater(t, ms, int64(0))
 }
 
 func TestVerifyBridgeToken_Invalid(t *testing.T) {
 	svc := setupRedirectService(t)
 
-	slug, adID, valid, _ := svc.VerifyBridgeToken("invalid-token")
+	slug, adIDs, valid, _ := svc.VerifyBridgeToken("invalid-token")
 	assert.False(t, valid)
 	assert.Empty(t, slug)
-	assert.Equal(t, uuid.Nil, adID)
+	assert.Empty(t, adIDs)
 }
 
 func TestVerifyBridgeToken_WrongFormat(t *testing.T) {
 	svc := setupRedirectService(t)
 
-	slug, adID, valid, _ := svc.VerifyBridgeToken("only-one-part")
+	slug, adIDs, valid, _ := svc.VerifyBridgeToken("only-one-part")
 	assert.False(t, valid)
 	assert.Empty(t, slug)
-	assert.Equal(t, uuid.Nil, adID)
+	assert.Empty(t, adIDs)
 }
 
 func TestVerifyBridgeToken_TamperedSignature(t *testing.T) {
@@ -73,28 +74,28 @@ func TestVerifyBridgeToken_TamperedSignature(t *testing.T) {
 	slug := "test"
 	adID := uuid.New()
 
-	realToken := svc.GenerateBridgeToken(slug, adID)
+	realToken := svc.GenerateBridgeToken(slug, []uuid.UUID{adID})
 	// Tamper with the signature
 	parts := splitN(realToken, ":", 4)
 	tamperedToken := parts[0] + ":" + parts[1] + ":" + parts[2] + ":invalidsig"
 
-	parsedSlug, parsedAdID, valid, _ := svc.VerifyBridgeToken(tamperedToken)
+	parsedSlug, parsedAdIDs, valid, _ := svc.VerifyBridgeToken(tamperedToken)
 	assert.False(t, valid)
 	assert.Empty(t, parsedSlug)
-	assert.Equal(t, uuid.Nil, parsedAdID)
+	assert.Empty(t, parsedAdIDs)
 }
 
 func TestVerifyBridgeToken_InvalidAdID(t *testing.T) {
 	svc := setupRedirectService(t)
-	_ = svc.GenerateBridgeToken("test", uuid.New())
+	_ = svc.GenerateBridgeToken("test", []uuid.UUID{uuid.New()})
 
 	// Token with invalid UUID as ad ID
 	invalidToken := "test:not-a-uuid:1234567890:signature"
 
-	slug, adID, valid, _ := svc.VerifyBridgeToken(invalidToken)
+	slug, adIDs, valid, _ := svc.VerifyBridgeToken(invalidToken)
 	assert.False(t, valid)
 	assert.Empty(t, slug)
-	assert.Equal(t, uuid.Nil, adID)
+	assert.Empty(t, adIDs)
 }
 
 func TestGetURL_NotFound(t *testing.T) {

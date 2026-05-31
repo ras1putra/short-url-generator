@@ -24,9 +24,10 @@ type URLServicer interface {
 	Create(ctx context.Context, userID uuid.UUID, req dto.CreateURLRequest) (*dto.URLResponse, error)
 	GetBySlug(ctx context.Context, slug string) (*repository.Url, error)
 	GetByID(ctx context.Context, userID uuid.UUID, slug string) (*dto.URLResponse, error)
-	ListByUser(ctx context.Context, userID uuid.UUID, page, perPage int) (*dto.ListResponse, error)
+	ListByUser(ctx context.Context, userID uuid.UUID, page, perPage int, q string, isMonetized *bool, sortBy, sortDir string) (*dto.ListResponse, error)
 	Update(ctx context.Context, userID uuid.UUID, slug string, req dto.UpdateURLRequest) (*dto.URLResponse, error)
 	GetStats(ctx context.Context, userID uuid.UUID, slug string) (*dto.StatsResponse, error)
+	GetLinkEvents(ctx context.Context, slug string, page, perPage int, sortBy, sortDir string) (*dto.AdEventListResponse, error)
 	GetAggregateStats(ctx context.Context, userID uuid.UUID) (*dto.StatsResponse, error)
 	Delete(ctx context.Context, userID uuid.UUID, slug string) error
 }
@@ -81,7 +82,18 @@ func (h *LinksHandler) List(c *fiber.Ctx) error {
 		perPage = constants.DefaultPerPage
 	}
 
-	resp, err := h.svc.ListByUser(c.Context(), userID, page, perPage)
+	q := c.Query("q", "")
+	sortBy := c.Query("sort_by", "created_at")
+	sortDir := c.Query("sort_dir", "desc")
+
+	var isMonetized *bool
+	if v := c.Query("is_monetized", ""); v != "" {
+		if parsed, err := strconv.ParseBool(v); err == nil {
+			isMonetized = &parsed
+		}
+	}
+
+	resp, err := h.svc.ListByUser(c.Context(), userID, page, perPage, q, isMonetized, sortBy, sortDir)
 	if err != nil {
 		return response.HandleError(c, err, "URL list")
 	}
@@ -89,6 +101,9 @@ func (h *LinksHandler) List(c *fiber.Ctx) error {
 	logger.Ctx(c.UserContext()).Info("URLs listed",
 		zap.Int("page", page),
 		zap.Int("per_page", perPage),
+		zap.String("q", q),
+		zap.String("sort_by", sortBy),
+		zap.String("sort_dir", sortDir),
 	)
 
 	return response.OK(c, resp, "URLs fetched successfully")
@@ -171,6 +186,30 @@ func (h *LinksHandler) Stats(c *fiber.Ctx) error {
 	resp, err := h.svc.GetStats(c.Context(), userID, slug)
 	if err != nil {
 		return response.HandleError(c, err, "URL stats")
+	}
+
+	page := c.QueryInt("event_page", constants.DefaultPage)
+	perPage := c.QueryInt("event_per_page", 10)
+	if page < 1 {
+		page = constants.DefaultPage
+	}
+	if perPage < 1 || perPage > constants.MaxPerPage {
+		perPage = 10
+	}
+
+	eventSortBy := c.Query("event_sort_by", "time")
+	eventSortDir := c.Query("event_sort_dir", "desc")
+
+	eventsResp, err := h.svc.GetLinkEvents(c.Context(), slug, page, perPage, eventSortBy, eventSortDir)
+	if err == nil {
+		resp.Events = eventsResp.Events
+	}
+
+	resp.EventPagination = &dto.EventPaginationInfo{
+		Total:      eventsResp.Total,
+		Page:       eventsResp.Page,
+		PerPage:    eventsResp.PerPage,
+		TotalPages: eventsResp.TotalPages,
 	}
 
 	logger.Ctx(c.UserContext()).Info("URL stats fetched",

@@ -112,11 +112,6 @@ func (s *URLService) Create(ctx context.Context, userID uuid.UUID, req dto.Creat
 	}
 
 	resp := dto.MapURLToResponse(url, s.cfg)
-	logger.Ctx(ctx).Info("URL created successfully",
-		zap.String("slug", url.Slug),
-		zap.String("original", url.Original),
-		zap.Bool("custom", url.Custom),
-	)
 	return &resp, nil
 }
 
@@ -126,12 +121,10 @@ func (s *URLService) GetBySlug(ctx context.Context, slug string) (*repository.Ur
 		if err == nil && cachedData != "" {
 			var url repository.Url
 			if json.Unmarshal([]byte(cachedData), &url) == nil {
-				logger.Ctx(ctx).Debug("URL cache hit", zap.String("slug", slug))
 				return &url, nil
 			}
 		}
 
-		logger.Ctx(ctx).Debug("URL cache miss, fetching from DB", zap.String("slug", slug))
 		url, err := s.repo.GetURLBySlug(ctx, slug)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
@@ -158,19 +151,73 @@ func (s *URLService) GetBySlug(ctx context.Context, slug string) (*repository.Ur
 	return result.(*repository.Url), nil
 }
 
-func (s *URLService) ListByUser(ctx context.Context, userID uuid.UUID, page, perPage int) (*dto.ListResponse, error) {
-	total, err := s.repo.CountURLsByUser(ctx, userID)
+func (s *URLService) ListByUser(ctx context.Context, userID uuid.UUID, page, perPage int, q string, isMonetized *bool, sortBy, sortDir string) (*dto.ListResponse, error) {
+	hasFilter := q != "" || isMonetized != nil || sortBy != "created_at" || sortDir != "desc"
+
+	if !hasFilter {
+		total, err := s.repo.CountURLsByUser(ctx, userID)
+		if err != nil {
+			logger.Ctx(ctx).Error("Failed to count URLs", zap.Error(err))
+			return nil, response.NewAppError(500, "Failed to fetch URLs")
+		}
+
+		offset := int32((page - 1) * perPage)
+		urls, err := s.repo.ListURLsByUserPaginated(ctx, repository.ListURLsByUserPaginatedParams{
+			UserID: userID,
+			Limit:  int32(perPage),
+			Offset: offset,
+		})
+		if err != nil {
+			logger.Ctx(ctx).Error("Failed to list URLs", zap.Error(err))
+			return nil, response.NewAppError(500, "Failed to fetch URLs")
+		}
+
+		result := make([]dto.URLResponse, len(urls))
+		for i, url := range urls {
+			result[i] = dto.MapURLToResponse(url, s.cfg)
+		}
+
+		totalPages := int(total) / perPage
+		if int(total)%perPage > 0 {
+			totalPages++
+		}
+
+		return &dto.ListResponse{
+			Links:      result,
+			Total:      total,
+			Page:       page,
+			PerPage:    perPage,
+			TotalPages: totalPages,
+		}, nil
+	}
+
+	isMonetizedNull := sql.NullBool{Valid: false}
+	if isMonetized != nil {
+		isMonetizedNull = sql.NullBool{Bool: *isMonetized, Valid: true}
+	}
+
+	offset := int32((page - 1) * perPage)
+	filterParams := repository.ListURLsByUserFilteredParams{
+		UserID:      userID,
+		Q:           sql.NullString{String: q, Valid: q != ""},
+		IsMonetized: isMonetizedNull,
+		SortBy:      sortBy,
+		SortDir:     sortDir,
+		Limit:       int32(perPage),
+		Offset:      offset,
+	}
+
+	total, err := s.repo.CountURLsByUserFiltered(ctx, repository.CountURLsByUserFilteredParams{
+		UserID:      userID,
+		Q:           filterParams.Q,
+		IsMonetized: filterParams.IsMonetized,
+	})
 	if err != nil {
 		logger.Ctx(ctx).Error("Failed to count URLs", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to fetch URLs")
 	}
 
-	offset := int32((page - 1) * perPage)
-	urls, err := s.repo.ListURLsByUserPaginated(ctx, repository.ListURLsByUserPaginatedParams{
-		UserID: userID,
-		Limit:  int32(perPage),
-		Offset: offset,
-	})
+	urls, err := s.repo.ListURLsByUserFiltered(ctx, filterParams)
 	if err != nil {
 		logger.Ctx(ctx).Error("Failed to list URLs", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to fetch URLs")
@@ -207,10 +254,6 @@ func (s *URLService) Delete(ctx context.Context, userID uuid.UUID, slug string) 
 	}
 
 	s.cache.Del(ctx, slug)
-	logger.Ctx(ctx).Info("URL deleted successfully",
-		zap.String("slug", slug),
-		zap.String("url_id", url.ID.String()),
-	)
 	return nil
 }
 
@@ -279,16 +322,12 @@ func (s *URLService) Update(ctx context.Context, userID uuid.UUID, currentSlug s
 		return nil, response.NewAppError(500, "Failed to update URL")
 	}
 
+	s.cache.Del(ctx, url.Slug)
 	if newSlug != url.Slug {
-		s.cache.Del(ctx, url.Slug)
+		s.cache.Del(ctx, newSlug)
 	}
 
 	resp := dto.MapURLToResponse(updated, s.cfg)
-	logger.Ctx(ctx).Info("URL updated successfully",
-		zap.String("old_slug", url.Slug),
-		zap.String("new_slug", updated.Slug),
-		zap.String("url_id", url.ID.String()),
-	)
 	return &resp, nil
 }
 
@@ -319,6 +358,79 @@ func (s *URLService) GetStats(ctx context.Context, userID uuid.UUID, slug string
 	}
 
 	return buildStatsResponse(totalClicks, uniqueClicks, clickRows), nil
+}
+
+func (s *URLService) GetLinkEvents(ctx context.Context, slug string, page, perPage int, sortBy, sortDir string) (*dto.AdEventListResponse, error) {
+	hasSort := sortBy != "time" || sortDir != "desc"
+
+	var total int64
+	var err error
+	if hasSort {
+		total, err = s.repo.CountLinkAdEventsFiltered(ctx, slug)
+	} else {
+		total, err = s.repo.CountLinkAdEvents(ctx, slug)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	offset := int32((page - 1) * perPage)
+
+	var rows []repository.GetLinkAdEventsFilteredRow
+	if hasSort {
+		rows, err = s.repo.GetLinkAdEventsFiltered(ctx, repository.GetLinkAdEventsFilteredParams{
+			Slug:    slug,
+			SortBy:  sortBy,
+			SortDir: sortDir,
+			Limit:   int32(perPage),
+			Offset:  offset,
+		})
+	} else {
+		var baseRows []repository.GetLinkAdEventsRow
+		baseRows, err = s.repo.GetLinkAdEvents(ctx, repository.GetLinkAdEventsParams{
+			Slug:   slug,
+			Limit:  int32(perPage),
+			Offset: offset,
+		})
+		if err == nil {
+			rows = make([]repository.GetLinkAdEventsFilteredRow, len(baseRows))
+			for i, r := range baseRows {
+				rows[i] = repository.GetLinkAdEventsFilteredRow(r)
+			}
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	events := make([]dto.AdEventItem, len(rows))
+	for i, r := range rows {
+		item := dto.AdEventItem{
+			Time:         r.Time.Format(time.RFC3339),
+			EventType:    r.EventType,
+			AdTitle:      r.AdTitle,
+			AdType:       r.AdType,
+			IsValid:      r.IsValid,
+			QualityScore: r.QualityScore,
+		}
+		if r.RejectionReason.Valid {
+			item.RejectionReason = r.RejectionReason.String
+		}
+		events[i] = item
+	}
+
+	totalPages := int(total) / perPage
+	if int(total)%perPage != 0 {
+		totalPages++
+	}
+
+	return &dto.AdEventListResponse{
+		Events:     events,
+		Total:      total,
+		Page:       page,
+		PerPage:    perPage,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (s *URLService) GetAggregateStats(ctx context.Context, userID uuid.UUID) (*dto.StatsResponse, error) {
@@ -358,7 +470,6 @@ func (s *URLService) StartExpiryCleaner(ctx context.Context) {
 				logger.Ctx(cleanerCtx).Error("Expiry cleaner error", zap.Error(err))
 				continue
 			}
-			logger.Ctx(cleanerCtx).Info("Expiry cleaner ran successfully")
 		case <-ctx.Done():
 			return
 		}

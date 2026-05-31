@@ -10,6 +10,7 @@ import (
 
 	"urlshortener/internal/modules/redirect/dto"
 	"urlshortener/internal/repository"
+	"urlshortener/pkg/constants"
 	"urlshortener/pkg/logger"
 	"urlshortener/pkg/response"
 )
@@ -55,35 +56,34 @@ func (h *RedirectHandler) Redirect(c *fiber.Ctx) error {
 		return c.Redirect(url.Original, fiber.StatusFound)
 	}
 
-	ads, err := h.svc.GetActiveAds(c.Context())
-	if err != nil || len(ads) == 0 {
-		h.svc.EnqueueClick(url.ID, ip, userAgent, referer)
-		logger.Ctx(c.UserContext()).Info("Redirected: no active ads available",
-			zap.String("slug", slug),
-			zap.String("ip", ip),
-			zap.String("user_agent", userAgent),
-			zap.String("original", url.Original),
-		)
-		return c.Redirect(url.Original, fiber.StatusFound)
-	}
-
 	c.Set("Content-Type", "text/html; charset=utf-8")
 	c.Set("Cache-Control", "no-cache, no-store, must-revalidate")
 
-	primaryAdID := ads[0].ID
-
-	for _, ad := range ads {
-		go h.svc.TrackAdEvent(ad.ID, url.ID, "IMPRESSION", ip, userAgent)
+	ads, err := h.svc.GetActiveAdsByCategory(c.Context(), url.AllowedCategories)
+	if err != nil {
+		ads = nil
 	}
 
-	bridgeToken := h.svc.GenerateBridgeToken(slug, primaryAdID)
+	if len(ads) > 0 {
+		rendered, renderedIDs, primaryAdID := h.svc.SelectAndTrackAds(ads, url.ID, ip, userAgent)
 
-	logger.Ctx(c.UserContext()).Info("Monetized interstitial bridge served",
+		bridgeToken := h.svc.GenerateBridgeToken(slug, renderedIDs)
+
+		logger.Ctx(c.UserContext()).Info("Monetized interstitial bridge served",
+			zap.String("slug", slug),
+			zap.Int("active_ads_count", len(ads)),
+		)
+
+		return c.SendString(RenderInterstitial(rendered, *url, bridgeToken, primaryAdID))
+	}
+
+	h.svc.EnqueueClick(url.ID, ip, userAgent, referer)
+	logger.Ctx(c.UserContext()).Info("No matching ads for categories, showing interstitial with placeholders",
 		zap.String("slug", slug),
-		zap.Int("active_ads_count", len(ads)),
+		zap.Strings("allowed_categories", url.AllowedCategories),
 	)
-
-	return c.SendString(RenderInterstitial(ads, *url, bridgeToken, primaryAdID))
+	placeholderToken := h.svc.GenerateBridgeToken(slug, []uuid.UUID{uuid.Nil})
+	return c.SendString(RenderInterstitial(nil, *url, placeholderToken, uuid.Nil))
 }
 
 func (h *RedirectHandler) AdClick(c *fiber.Ctx) error {
@@ -108,7 +108,7 @@ func (h *RedirectHandler) AdClick(c *fiber.Ctx) error {
 		return c.Redirect(url.Original, fiber.StatusFound)
 	}
 
-	go h.svc.TrackAdEvent(adID, url.ID, "CLICK", c.IP(), c.Get("User-Agent"))
+	go h.svc.TrackAdEvent(adID, url.ID, constants.AdEventClick, c.IP(), c.Get("User-Agent"))
 
 	logger.Ctx(c.UserContext()).Info("Ad clicked successfully",
 		zap.String("slug", slug),
@@ -135,7 +135,7 @@ func (h *RedirectHandler) AdComplete(c *fiber.Ctx) error {
 		return c.Status(404).SendString("Not found")
 	}
 
-	go h.svc.TrackAdEvent(adID, url.ID, "COMPLETION", c.IP(), c.Get("User-Agent"))
+	go h.svc.TrackAdEvent(adID, url.ID, constants.AdEventCompletion, c.IP(), c.Get("User-Agent"))
 
 	logger.Ctx(c.UserContext()).Info("Ad completed successfully",
 		zap.String("slug", slug),
@@ -149,7 +149,7 @@ func (h *RedirectHandler) AdCompleteFlow(c *fiber.Ctx) error {
 	slug := c.Params("slug")
 	token := c.Query("token")
 
-	verifiedSlug, adID, valid, issuedMs := h.svc.VerifyBridgeToken(token)
+	verifiedSlug, adIDs, valid, issuedMs := h.svc.VerifyBridgeToken(token)
 	if !valid || verifiedSlug != slug {
 		logger.Ctx(c.UserContext()).Warn("AdCompleteFlow failed: invalid or tampered bridge token", zap.String("slug", slug))
 		return c.Status(400).JSON(dto.ErrorResponse{Error: "invalid or tampered token"})
@@ -183,19 +183,40 @@ func (h *RedirectHandler) AdCompleteFlow(c *fiber.Ctx) error {
 	ip := c.IP()
 	userAgent := c.Get("User-Agent")
 
-	if err := h.svc.ChargeForCompletion(c.Context(), slug, adID, url.ID, url.UserID, ip, userAgent, issuedMs, req); err != nil {
-		logger.Ctx(c.UserContext()).Error("ChargeForCompletion failed",
-			zap.String("slug", slug),
-			zap.String("ad_id", adID.String()),
-			zap.Error(err),
-		)
+	var representativeAdID uuid.UUID
+	if len(adIDs) > 0 {
+		representativeAdID = adIDs[0]
+	}
+
+	quality := h.svc.runQualityChecks(c.Context(), slug, representativeAdID.String(), ip, req.Fingerprint, req.HoneypotHit, req.MouseMoves, issuedMs)
+
+	for _, adID := range adIDs {
+		if adID == uuid.Nil {
+			continue
+		}
+		if err := h.svc.ChargeForCompletion(c.Context(), slug, adID, url.ID, url.UserID, ip, userAgent, issuedMs, req, &quality); err != nil {
+			logger.Ctx(c.UserContext()).Error("ChargeForCompletion failed",
+				zap.String("slug", slug),
+				zap.String("ad_id", adID.String()),
+				zap.Error(err),
+			)
+		}
+	}
+
+	if url.IsMonetized {
+		if err := h.svc.CreditPlatformReward(c.Context(), url.UserID, slug, &quality); err != nil {
+			logger.Ctx(c.UserContext()).Error("CreditPlatformReward failed",
+				zap.String("slug", slug),
+				zap.Error(err),
+			)
+		}
 	}
 
 	h.svc.EnqueueClick(url.ID, ip, userAgent, c.Get("Referer"))
 
-	logger.Ctx(c.UserContext()).Info("AdCompleteFlow charge and redirected successfully",
+	logger.Ctx(c.UserContext()).Info("AdCompleteFlow charges completed and redirected successfully",
 		zap.String("slug", slug),
-		zap.String("ad_id", adID.String()),
+		zap.Int("charged_ads_count", len(adIDs)),
 		zap.String("destination_url", url.Original),
 	)
 
@@ -221,7 +242,7 @@ func (h *RedirectHandler) AdSkip(c *fiber.Ctx) error {
 		return c.Status(404).SendString("Not found")
 	}
 
-	go h.svc.TrackAdEvent(adID, url.ID, "SKIP", c.IP(), c.Get("User-Agent"))
+	go h.svc.TrackAdEvent(adID, url.ID, constants.AdEventSkip, c.IP(), c.Get("User-Agent"))
 
 	logger.Ctx(c.UserContext()).Info("Ad skipped successfully",
 		zap.String("slug", slug),

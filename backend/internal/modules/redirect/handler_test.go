@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http/httptest"
 	"testing"
+	"database/sql"
 	"time"
 
 	"urlshortener/internal/analytics"
@@ -46,7 +47,7 @@ func createTestUser(t *testing.T, queries *repository.Queries, ctx context.Conte
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Redirect User",
 		Email:    "redirect@example.com",
-		Password: "password",
+		Password: sql.NullString{String: "password", Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
