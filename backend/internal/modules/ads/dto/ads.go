@@ -62,11 +62,23 @@ type AdTypeResponse struct {
 	RecommendedResolution string          `json:"recommended_resolution"`
 }
 
+type CampaignListResponse struct {
+	Campaigns  []AdResponse `json:"campaigns"`
+	Total      int64        `json:"total"`
+	Page       int          `json:"page"`
+	PerPage    int          `json:"per_page"`
+	TotalPages int          `json:"total_pages"`
+}
+
 type AdStatsResponse struct {
-	AdID        string `json:"ad_id"`
-	Impressions int64  `json:"impressions"`
-	Clicks      int64  `json:"clicks"`
-	Completions int64  `json:"completions"`
+	AdID              string  `json:"ad_id"`
+	Impressions       int64   `json:"impressions"`
+	Clicks            int64   `json:"clicks"`
+	Completions       int64   `json:"completions"`
+	ValidCompletions  int64   `json:"valid_completions"`
+	InvalidCompletions int64  `json:"invalid_completions"`
+	Skips             int64   `json:"skips"`
+	AvgQualityScore   float64 `json:"avg_quality_score"`
 }
 
 func MapAdToResponse(ad repository.Ad) AdResponse {

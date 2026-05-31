@@ -30,6 +30,7 @@ func NewAdService(db *sql.DB, repo repository.Querier) *AdService {
 func (s *AdService) getBaseCPM(ctx context.Context, adType string) (decimal.Decimal, error) {
 	cpmStr, err := s.repo.GetCPMByAdType(ctx, strings.ToUpper(adType))
 	if err != nil {
+		logger.Ctx(ctx).Warn("Failed to get base CPM for ad type", zap.String("ad_type", adType), zap.Error(err))
 		return decimal.Zero, response.NewAppError(400, "Invalid ad type: "+adType)
 	}
 	return helper.ParseDecimal(cpmStr), nil
@@ -38,6 +39,7 @@ func (s *AdService) getBaseCPM(ctx context.Context, adType string) (decimal.Deci
 func (s *AdService) getCategoryMultiplier(ctx context.Context, category string) (decimal.Decimal, error) {
 	multStr, err := s.repo.GetCategoryMultiplier(ctx, category)
 	if err != nil {
+		logger.Ctx(ctx).Warn("Failed to get category multiplier", zap.String("category", category), zap.Error(err))
 		return decimal.Zero, response.NewAppError(400, "Invalid category: "+category)
 	}
 	return helper.ParseDecimal(multStr), nil
@@ -99,6 +101,7 @@ func (s *AdService) deductWalletForAdSpend(ctx context.Context, q repository.Que
 	wallet, err := q.GetWalletByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			logger.Ctx(ctx).Warn("Wallet not found for ad spend", zap.String("user_id", userID.String()))
 			return response.NewAppError(404, "Wallet not found")
 		}
 		logger.Ctx(ctx).Error("Failed to retrieve wallet for ad spend", zap.Error(err))
@@ -122,7 +125,7 @@ func (s *AdService) deductWalletForAdSpend(ctx context.Context, q repository.Que
 
 	_, err = q.CreateTransaction(ctx, repository.CreateTransactionParams{
 		UserID: userID,
-		Amount: helper.FormatDecimal(amount),
+		Amount: helper.FormatDecimal(negAmount),
 		Type:   constants.TxTypeAdSpend,
 	})
 	if err != nil {
@@ -147,20 +150,12 @@ func (s *AdService) Create(ctx context.Context, userID uuid.UUID, req dto.Create
 		logger.Ctx(ctx).Error("Failed to start transaction for campaign creation", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to start transaction")
 	}
-	dbTx := tx
-	defer func() {
-		if r := recover(); r != nil {
-			_ = dbTx.Rollback()
-			panic(r)
-		} else if err != nil {
-			_ = dbTx.Rollback()
-		}
-	}()
+	defer func() { _ = tx.Rollback() }()
 
 	if queriesInstance, ok := s.repo.(*repository.Queries); ok {
 		q = queriesInstance.WithTx(tx)
 	} else {
-		_ = dbTx.Rollback()
+		_ = tx.Rollback()
 		logger.Ctx(ctx).Error("Repository is not transaction-compatible for campaign creation")
 		return nil, response.NewAppError(500, "Repository is not transaction-compatible")
 	}
@@ -186,11 +181,12 @@ func (s *AdService) Create(ctx context.Context, userID uuid.UUID, req dto.Create
 		return nil, response.NewAppError(500, "Failed to create ad campaign")
 	}
 
-	if err = dbTx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
 		logger.Ctx(ctx).Error("Failed to commit campaign creation transaction", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to finalize campaign creation")
 	}
 
+	logger.Ctx(ctx).Info("Ad campaign successfully created", zap.String("ad_id", ad.ID.String()), zap.String("user_id", userID.String()), zap.Float64("total_budget", req.TotalBudget))
 	resp := dto.MapAdToResponse(ad)
 	return &resp, nil
 }
@@ -205,6 +201,7 @@ func (s *AdService) getAd(ctx context.Context, adID, userID uuid.UUID) (reposito
 		return repository.Ad{}, response.NewAppError(500, "Failed to get ad campaign")
 	}
 	if ad.AdvertiserID != userID {
+		logger.Ctx(ctx).Warn("Unauthorized access attempt to ad campaign", zap.String("ad_id", adID.String()), zap.String("user_id", userID.String()))
 		return repository.Ad{}, response.NewAppError(403, "You do not own this campaign")
 	}
 	return ad, nil
@@ -219,14 +216,43 @@ func (s *AdService) GetByID(ctx context.Context, adID, userID uuid.UUID) (*dto.A
 	return &resp, nil
 }
 
-func (s *AdService) ListByAdvertiser(ctx context.Context, userID uuid.UUID) ([]dto.AdResponse, error) {
-	ads, err := s.repo.ListAdsByAdvertiser(ctx, userID)
+func (s *AdService) ListByAdvertiser(ctx context.Context, userID uuid.UUID, page, perPage int, q, sortBy, sortDir string) (*dto.CampaignListResponse, error) {
+	total, err := s.repo.CountAdsByAdvertiserFiltered(ctx, repository.CountAdsByAdvertiserFilteredParams{
+		AdvertiserID: userID,
+		Q:            sql.NullString{String: q, Valid: q != ""},
+	})
+	if err != nil {
+		logger.Ctx(ctx).Error("Failed to count campaigns", zap.Error(err))
+		return nil, response.NewAppError(500, "Failed to count campaigns")
+	}
+
+	offset := int32((page - 1) * perPage)
+
+	ads, err := s.repo.ListAdsByAdvertiserFiltered(ctx, repository.ListAdsByAdvertiserFilteredParams{
+		AdvertiserID: userID,
+		Q:            sql.NullString{String: q, Valid: q != ""},
+		SortBy:       sortBy,
+		SortDir:      sortDir,
+		Limit:        int32(perPage),
+		Offset:       offset,
+	})
 	if err != nil {
 		logger.Ctx(ctx).Error("Failed to list campaigns", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to list campaigns")
 	}
 
-	return dto.MapAdsToResponse(ads), nil
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+
+	return &dto.CampaignListResponse{
+		Campaigns:  dto.MapAdsToResponse(ads),
+		Total:      total,
+		Page:       page,
+		PerPage:    perPage,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (s *AdService) Update(ctx context.Context, adID, userID uuid.UUID, req dto.UpdateAdRequest) (*dto.AdResponse, error) {
@@ -280,6 +306,7 @@ func (s *AdService) Update(ctx context.Context, adID, userID uuid.UUID, req dto.
 		return nil, response.NewAppError(500, "Failed to update campaign")
 	}
 
+	logger.Ctx(ctx).Info("Ad campaign successfully updated", zap.String("ad_id", adID.String()), zap.String("user_id", userID.String()))
 	resp := dto.MapAdToResponse(ad)
 	return &resp, nil
 }
@@ -297,14 +324,7 @@ func (s *AdService) TopUp(ctx context.Context, adID, userID uuid.UUID, req dto.T
 		logger.Ctx(ctx).Error("Failed to start transaction for campaign top-up", zap.Error(err))
 		return nil, response.NewAppError(500, "Failed to start transaction")
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			_ = tx.Rollback()
-			panic(r)
-		} else if err != nil {
-			_ = tx.Rollback()
-		}
-	}()
+	defer func() { _ = tx.Rollback() }()
 
 	var q *repository.Queries
 	if queriesInstance, ok := s.repo.(*repository.Queries); ok {
@@ -348,6 +368,7 @@ func (s *AdService) TopUp(ctx context.Context, adID, userID uuid.UUID, req dto.T
 		return nil, response.NewAppError(500, "Failed to finalize campaign top-up")
 	}
 
+	logger.Ctx(ctx).Info("Ad campaign successfully topped up", zap.String("ad_id", adID.String()), zap.String("user_id", userID.String()), zap.Float64("amount", req.Amount))
 	resp := dto.MapAdToResponse(ad)
 	return &resp, nil
 }
@@ -366,6 +387,7 @@ func (s *AdService) Delete(ctx context.Context, adID, userID uuid.UUID) error {
 		return response.NewAppError(500, "Failed to delete campaign")
 	}
 
+	logger.Ctx(ctx).Info("Ad campaign successfully deleted", zap.String("ad_id", adID.String()), zap.String("user_id", userID.String()))
 	return nil
 }
 
@@ -377,13 +399,18 @@ func (s *AdService) GetStats(ctx context.Context, adID, userID uuid.UUID) (*dto.
 
 	stats, err := s.repo.GetAdEventStats(ctx, adID)
 	if err != nil {
+		logger.Ctx(ctx).Warn("Failed to retrieve ad campaign event stats, using empty fallback", zap.String("ad_id", adID.String()), zap.Error(err))
 		stats = repository.GetAdEventStatsRow{}
 	}
 
 	return &dto.AdStatsResponse{
-		AdID:        adID.String(),
-		Impressions: stats.Impressions,
-		Clicks:      stats.Clicks,
-		Completions: stats.Completions,
+		AdID:               adID.String(),
+		Impressions:        stats.Impressions,
+		Clicks:             stats.Clicks,
+		Completions:        stats.Completions,
+		ValidCompletions:   stats.ValidCompletions,
+		InvalidCompletions: stats.InvalidCompletions,
+		Skips:              stats.Skips,
+		AvgQualityScore:    stats.AvgQualityScore,
 	}, nil
 }

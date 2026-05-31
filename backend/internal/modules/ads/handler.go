@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"urlshortener/internal/modules/ads/dto"
+	"urlshortener/pkg/constants"
 	"urlshortener/pkg/helper"
 	"urlshortener/pkg/logger"
 	"urlshortener/pkg/response"
@@ -19,7 +20,7 @@ import (
 type AdServicer interface {
 	Create(ctx context.Context, userID uuid.UUID, req dto.CreateAdRequest) (*dto.AdResponse, error)
 	GetByID(ctx context.Context, adID, userID uuid.UUID) (*dto.AdResponse, error)
-	ListByAdvertiser(ctx context.Context, userID uuid.UUID) ([]dto.AdResponse, error)
+	ListByAdvertiser(ctx context.Context, userID uuid.UUID, page, perPage int, q, sortBy, sortDir string) (*dto.CampaignListResponse, error)
 	Update(ctx context.Context, adID, userID uuid.UUID, req dto.UpdateAdRequest) (*dto.AdResponse, error)
 	Delete(ctx context.Context, adID, userID uuid.UUID) error
 	GetStats(ctx context.Context, adID, userID uuid.UUID) (*dto.AdStatsResponse, error)
@@ -67,13 +68,28 @@ func (h *AdHandler) List(c *fiber.Ctx) error {
 		return response.Unauthorized(c, err.Error())
 	}
 
-	resp, err := h.svc.ListByAdvertiser(c.Context(), userID)
+	page := c.QueryInt("page", constants.DefaultPage)
+	perPage := c.QueryInt("per_page", constants.DefaultPerPage)
+	if page < 1 {
+		page = constants.DefaultPage
+	}
+	if perPage < 1 || perPage > constants.MaxPerPage {
+		perPage = constants.DefaultPerPage
+	}
+
+	q := c.Query("q", "")
+	sortBy := c.Query("sort_by", "created_at")
+	sortDir := c.Query("sort_dir", "desc")
+
+	resp, err := h.svc.ListByAdvertiser(c.Context(), userID, page, perPage, q, sortBy, sortDir)
 	if err != nil {
 		return response.HandleError(c, err, "ListAds")
 	}
 
 	logger.Ctx(c.UserContext()).Info("Ad campaigns listed",
-		zap.String("ip", c.IP()),
+		zap.Int("page", page),
+		zap.Int("per_page", perPage),
+		zap.String("q", q),
 	)
 
 	return response.OK(c, resp, "Campaigns fetched successfully")

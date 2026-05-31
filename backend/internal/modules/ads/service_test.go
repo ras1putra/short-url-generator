@@ -37,7 +37,7 @@ func createAdUser(t *testing.T, queries *repository.Queries, ctx context.Context
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Advertiser",
 		Email:    "adv-" + uuid.New().String() + "@example.com",
-		Password: "hashed",
+		Password: sql.NullString{String: "hashed", Valid: true},
 		Role:     "advertiser",
 	})
 	require.NoError(t, err)
@@ -144,9 +144,9 @@ func TestListByAdvertiser_Success(t *testing.T) {
 	createSampleAd(t, queries, ctx, user.ID, "active")
 	createSampleAd(t, queries, ctx, user.ID, "paused")
 
-	resp, err := svc.ListByAdvertiser(ctx, user.ID)
+	resp, err := svc.ListByAdvertiser(ctx, user.ID, 1, 10, "", "created_at", "desc")
 	require.NoError(t, err)
-	assert.Len(t, resp, 2)
+	assert.Len(t, resp.Campaigns, 2)
 }
 
 func TestListByAdvertiser_Empty(t *testing.T) {
@@ -155,9 +155,9 @@ func TestListByAdvertiser_Empty(t *testing.T) {
 
 	user := createAdUser(t, queries, ctx)
 
-	resp, err := svc.ListByAdvertiser(ctx, user.ID)
+	resp, err := svc.ListByAdvertiser(ctx, user.ID, 1, 10, "", "created_at", "desc")
 	require.NoError(t, err)
-	assert.Empty(t, resp)
+	assert.Empty(t, resp.Campaigns)
 }
 
 func TestUpdate_Success(t *testing.T) {
