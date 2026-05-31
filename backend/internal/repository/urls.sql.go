@@ -24,6 +24,26 @@ func (q *Queries) CountURLsByUser(ctx context.Context, userID uuid.UUID) (int64,
 	return count, err
 }
 
+const countURLsByUserFiltered = `-- name: CountURLsByUserFiltered :one
+SELECT COUNT(*) FROM urls
+WHERE user_id = $1
+  AND ($2::text IS NULL OR $2 = '' OR slug ILIKE '%' || $2 || '%' OR original ILIKE '%' || $2 || '%')
+  AND ($3::bool IS NULL OR is_monetized = $3)
+`
+
+type CountURLsByUserFilteredParams struct {
+	UserID      uuid.UUID      `json:"user_id"`
+	Q           sql.NullString `json:"q"`
+	IsMonetized sql.NullBool   `json:"is_monetized"`
+}
+
+func (q *Queries) CountURLsByUserFiltered(ctx context.Context, arg CountURLsByUserFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countURLsByUserFiltered, arg.UserID, arg.Q, arg.IsMonetized)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createURL = `-- name: CreateURL :one
 INSERT INTO urls (
   user_id, slug, original, custom, expires_at, is_monetized, allowed_categories
@@ -125,6 +145,76 @@ ORDER BY created_at DESC
 
 func (q *Queries) ListURLsByUser(ctx context.Context, userID uuid.UUID) ([]Url, error) {
 	rows, err := q.db.QueryContext(ctx, listURLsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Url
+	for rows.Next() {
+		var i Url
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Slug,
+			&i.Original,
+			&i.Custom,
+			&i.ExpiresAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.IsMonetized,
+			pq.Array(&i.AllowedCategories),
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listURLsByUserFiltered = `-- name: ListURLsByUserFiltered :many
+SELECT id, user_id, slug, original, custom, expires_at, created_at, updated_at, is_monetized, allowed_categories FROM urls
+WHERE user_id = $1
+  AND ($2::text IS NULL OR $2 = '' OR slug ILIKE '%' || $2 || '%' OR original ILIKE '%' || $2 || '%')
+  AND ($3::bool IS NULL OR is_monetized = $3)
+ORDER BY
+  CASE WHEN $4::text = 'slug' AND $5::text = 'ASC' THEN slug END ASC NULLS LAST,
+  CASE WHEN $4::text = 'slug' AND $5::text = 'DESC' THEN slug END DESC NULLS LAST,
+  CASE WHEN $4::text = 'created_at' AND $5::text = 'ASC' THEN created_at::text END ASC NULLS LAST,
+  CASE WHEN $4::text = 'created_at' AND $5::text = 'DESC' THEN created_at::text END DESC NULLS LAST,
+  CASE WHEN $4::text = 'expires_at' AND $5::text = 'ASC' THEN expires_at::text END ASC NULLS LAST,
+  CASE WHEN $4::text = 'expires_at' AND $5::text = 'DESC' THEN expires_at::text END DESC NULLS LAST,
+  CASE WHEN $4::text = 'updated_at' AND $5::text = 'ASC' THEN updated_at::text END ASC NULLS LAST,
+  CASE WHEN $4::text = 'updated_at' AND $5::text = 'DESC' THEN updated_at::text END DESC NULLS LAST,
+  created_at DESC
+LIMIT $7 OFFSET $6
+`
+
+type ListURLsByUserFilteredParams struct {
+	UserID      uuid.UUID      `json:"user_id"`
+	Q           sql.NullString `json:"q"`
+	IsMonetized sql.NullBool   `json:"is_monetized"`
+	SortBy      string         `json:"sort_by"`
+	SortDir     string         `json:"sort_dir"`
+	Offset      int32          `json:"offset"`
+	Limit       int32          `json:"limit"`
+}
+
+func (q *Queries) ListURLsByUserFiltered(ctx context.Context, arg ListURLsByUserFilteredParams) ([]Url, error) {
+	rows, err := q.db.QueryContext(ctx, listURLsByUserFiltered,
+		arg.UserID,
+		arg.Q,
+		arg.IsMonetized,
+		arg.SortBy,
+		arg.SortDir,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

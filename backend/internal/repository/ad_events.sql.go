@@ -8,10 +8,40 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
 )
+
+const countLinkAdEvents = `-- name: CountLinkAdEvents :one
+SELECT COUNT(*) 
+FROM ad_events ae
+JOIN urls u ON ae.link_id = u.id
+WHERE u.slug = $1
+`
+
+func (q *Queries) CountLinkAdEvents(ctx context.Context, slug string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countLinkAdEvents, slug)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countLinkAdEventsFiltered = `-- name: CountLinkAdEventsFiltered :one
+SELECT COUNT(*) 
+FROM ad_events ae
+JOIN ads a ON ae.ad_id = a.id
+JOIN urls u ON ae.link_id = u.id
+WHERE u.slug = $1
+`
+
+func (q *Queries) CountLinkAdEventsFiltered(ctx context.Context, slug string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countLinkAdEventsFiltered, slug)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const createAdEvent = `-- name: CreateAdEvent :one
 INSERT INTO ad_events (
@@ -67,20 +97,179 @@ const getAdEventStats = `-- name: GetAdEventStats :one
 SELECT 
     COUNT(*) FILTER (WHERE event_type = 'IMPRESSION') as impressions,
     COUNT(*) FILTER (WHERE event_type = 'CLICK') as clicks,
-    COUNT(*) FILTER (WHERE event_type = 'COMPLETION') as completions
+    COUNT(*) FILTER (WHERE event_type = 'COMPLETION') as completions,
+    COUNT(*) FILTER (WHERE event_type = 'COMPLETION' AND is_valid = true) as valid_completions,
+    COUNT(*) FILTER (WHERE event_type = 'COMPLETION' AND is_valid = false) as invalid_completions,
+    COUNT(*) FILTER (WHERE event_type = 'SKIP') as skips,
+    COALESCE(AVG(quality_score) FILTER (WHERE event_type = 'COMPLETION' AND is_valid = true), 0.0)::float as avg_quality_score
 FROM ad_events 
 WHERE ad_id = $1
 `
 
 type GetAdEventStatsRow struct {
-	Impressions int64 `json:"impressions"`
-	Clicks      int64 `json:"clicks"`
-	Completions int64 `json:"completions"`
+	Impressions        int64   `json:"impressions"`
+	Clicks             int64   `json:"clicks"`
+	Completions        int64   `json:"completions"`
+	ValidCompletions   int64   `json:"valid_completions"`
+	InvalidCompletions int64   `json:"invalid_completions"`
+	Skips              int64   `json:"skips"`
+	AvgQualityScore    float64 `json:"avg_quality_score"`
 }
 
 func (q *Queries) GetAdEventStats(ctx context.Context, adID uuid.UUID) (GetAdEventStatsRow, error) {
 	row := q.db.QueryRowContext(ctx, getAdEventStats, adID)
 	var i GetAdEventStatsRow
-	err := row.Scan(&i.Impressions, &i.Clicks, &i.Completions)
+	err := row.Scan(
+		&i.Impressions,
+		&i.Clicks,
+		&i.Completions,
+		&i.ValidCompletions,
+		&i.InvalidCompletions,
+		&i.Skips,
+		&i.AvgQualityScore,
+	)
 	return i, err
+}
+
+const getLinkAdEvents = `-- name: GetLinkAdEvents :many
+SELECT 
+    ae.created_at as time,
+    ae.event_type,
+    ae.is_valid,
+    ae.quality_score,
+    ae.rejection_reason,
+    a.title as ad_title,
+    a.ad_type
+FROM ad_events ae
+JOIN ads a ON ae.ad_id = a.id
+JOIN urls u ON ae.link_id = u.id
+WHERE u.slug = $1
+ORDER BY ae.created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetLinkAdEventsParams struct {
+	Slug   string `json:"slug"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+type GetLinkAdEventsRow struct {
+	Time            time.Time      `json:"time"`
+	EventType       string         `json:"event_type"`
+	IsValid         bool           `json:"is_valid"`
+	QualityScore    string         `json:"quality_score"`
+	RejectionReason sql.NullString `json:"rejection_reason"`
+	AdTitle         string         `json:"ad_title"`
+	AdType          string         `json:"ad_type"`
+}
+
+func (q *Queries) GetLinkAdEvents(ctx context.Context, arg GetLinkAdEventsParams) ([]GetLinkAdEventsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getLinkAdEvents, arg.Slug, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetLinkAdEventsRow
+	for rows.Next() {
+		var i GetLinkAdEventsRow
+		if err := rows.Scan(
+			&i.Time,
+			&i.EventType,
+			&i.IsValid,
+			&i.QualityScore,
+			&i.RejectionReason,
+			&i.AdTitle,
+			&i.AdType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getLinkAdEventsFiltered = `-- name: GetLinkAdEventsFiltered :many
+SELECT 
+    ae.created_at as time,
+    ae.event_type,
+    ae.is_valid,
+    ae.quality_score,
+    ae.rejection_reason,
+    a.title as ad_title,
+    a.ad_type
+FROM ad_events ae
+JOIN ads a ON ae.ad_id = a.id
+JOIN urls u ON ae.link_id = u.id
+WHERE u.slug = $1
+ORDER BY
+  CASE WHEN $2::text = 'time' AND $3::text = 'asc' THEN ae.created_at::text END ASC NULLS LAST,
+  CASE WHEN $2::text = 'time' AND $3::text = 'desc' THEN ae.created_at::text END DESC NULLS LAST,
+  CASE WHEN $2::text = 'event_type' AND $3::text = 'asc' THEN ae.event_type END ASC NULLS LAST,
+  CASE WHEN $2::text = 'event_type' AND $3::text = 'desc' THEN ae.event_type END DESC NULLS LAST,
+  CASE WHEN $2::text = 'ad_title' AND $3::text = 'asc' THEN a.title END ASC NULLS LAST,
+  CASE WHEN $2::text = 'ad_title' AND $3::text = 'desc' THEN a.title END DESC NULLS LAST,
+  ae.created_at DESC
+LIMIT $5 OFFSET $4
+`
+
+type GetLinkAdEventsFilteredParams struct {
+	Slug    string `json:"slug"`
+	SortBy  string `json:"sort_by"`
+	SortDir string `json:"sort_dir"`
+	Offset  int32  `json:"offset"`
+	Limit   int32  `json:"limit"`
+}
+
+type GetLinkAdEventsFilteredRow struct {
+	Time            time.Time      `json:"time"`
+	EventType       string         `json:"event_type"`
+	IsValid         bool           `json:"is_valid"`
+	QualityScore    string         `json:"quality_score"`
+	RejectionReason sql.NullString `json:"rejection_reason"`
+	AdTitle         string         `json:"ad_title"`
+	AdType          string         `json:"ad_type"`
+}
+
+func (q *Queries) GetLinkAdEventsFiltered(ctx context.Context, arg GetLinkAdEventsFilteredParams) ([]GetLinkAdEventsFilteredRow, error) {
+	rows, err := q.db.QueryContext(ctx, getLinkAdEventsFiltered,
+		arg.Slug,
+		arg.SortBy,
+		arg.SortDir,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetLinkAdEventsFilteredRow
+	for rows.Next() {
+		var i GetLinkAdEventsFilteredRow
+		if err := rows.Scan(
+			&i.Time,
+			&i.EventType,
+			&i.IsValid,
+			&i.QualityScore,
+			&i.RejectionReason,
+			&i.AdTitle,
+			&i.AdType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

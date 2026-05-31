@@ -13,6 +13,35 @@ import (
 	"github.com/lib/pq"
 )
 
+const countAdsByAdvertiser = `-- name: CountAdsByAdvertiser :one
+SELECT COUNT(*) FROM ads WHERE advertiser_id = $1
+`
+
+func (q *Queries) CountAdsByAdvertiser(ctx context.Context, advertiserID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAdsByAdvertiser, advertiserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countAdsByAdvertiserFiltered = `-- name: CountAdsByAdvertiserFiltered :one
+SELECT COUNT(*) FROM ads
+WHERE advertiser_id = $1
+  AND ($2::text IS NULL OR $2 = '' OR title ILIKE '%' || $2 || '%')
+`
+
+type CountAdsByAdvertiserFilteredParams struct {
+	AdvertiserID uuid.UUID      `json:"advertiser_id"`
+	Q            sql.NullString `json:"q"`
+}
+
+func (q *Queries) CountAdsByAdvertiserFiltered(ctx context.Context, arg CountAdsByAdvertiserFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAdsByAdvertiserFiltered, arg.AdvertiserID, arg.Q)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAd = `-- name: CreateAd :one
 INSERT INTO ads (
     advertiser_id, title, description, image_url, target_url, category, total_budget, remaining_budget, cpm, ad_type
@@ -87,7 +116,7 @@ func (q *Queries) DeductAdBudget(ctx context.Context, arg DeductAdBudgetParams) 
 const getActiveAds = `-- name: GetActiveAds :many
 SELECT id, advertiser_id, title, description, image_url, target_url, category, ad_type, total_budget, remaining_budget, cpm, status, created_at, updated_at FROM ads 
 WHERE status = 'active' 
-AND remaining_budget > 0 
+AND remaining_budget >= (cpm / 1000)
 ORDER BY cpm DESC
 `
 
@@ -132,7 +161,7 @@ func (q *Queries) GetActiveAds(ctx context.Context) ([]Ad, error) {
 const getActiveAdsByCategory = `-- name: GetActiveAdsByCategory :many
 SELECT id, advertiser_id, title, description, image_url, target_url, category, ad_type, total_budget, remaining_budget, cpm, status, created_at, updated_at FROM ads 
 WHERE status = 'active' 
-AND remaining_budget > 0 
+AND remaining_budget >= (cpm / 1000)
 AND category = ANY($1::text[])
 ORDER BY cpm DESC
 `
@@ -293,6 +322,79 @@ SELECT id, advertiser_id, title, description, image_url, target_url, category, a
 
 func (q *Queries) ListAdsByAdvertiser(ctx context.Context, advertiserID uuid.UUID) ([]Ad, error) {
 	rows, err := q.db.QueryContext(ctx, listAdsByAdvertiser, advertiserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Ad
+	for rows.Next() {
+		var i Ad
+		if err := rows.Scan(
+			&i.ID,
+			&i.AdvertiserID,
+			&i.Title,
+			&i.Description,
+			&i.ImageUrl,
+			&i.TargetUrl,
+			&i.Category,
+			&i.AdType,
+			&i.TotalBudget,
+			&i.RemainingBudget,
+			&i.Cpm,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAdsByAdvertiserFiltered = `-- name: ListAdsByAdvertiserFiltered :many
+SELECT id, advertiser_id, title, description, image_url, target_url, category, ad_type, total_budget, remaining_budget, cpm, status, created_at, updated_at FROM ads
+WHERE advertiser_id = $1
+  AND ($2::text IS NULL OR $2 = '' OR title ILIKE '%' || $2 || '%')
+ORDER BY
+  CASE WHEN $3::text = 'title' AND $4::text = 'asc' THEN title END ASC NULLS LAST,
+  CASE WHEN $3::text = 'title' AND $4::text = 'desc' THEN title END DESC NULLS LAST,
+  CASE WHEN $3::text = 'status' AND $4::text = 'asc' THEN status END ASC NULLS LAST,
+  CASE WHEN $3::text = 'status' AND $4::text = 'desc' THEN status END DESC NULLS LAST,
+  CASE WHEN $3::text = 'created_at' AND $4::text = 'asc' THEN created_at::text END ASC NULLS LAST,
+  CASE WHEN $3::text = 'created_at' AND $4::text = 'desc' THEN created_at::text END DESC NULLS LAST,
+  CASE WHEN $3::text = 'budget' AND $4::text = 'asc' THEN remaining_budget END ASC NULLS LAST,
+  CASE WHEN $3::text = 'budget' AND $4::text = 'desc' THEN remaining_budget END DESC NULLS LAST,
+  CASE WHEN $3::text = 'cpm' AND $4::text = 'asc' THEN cpm END ASC NULLS LAST,
+  CASE WHEN $3::text = 'cpm' AND $4::text = 'desc' THEN cpm END DESC NULLS LAST,
+  created_at DESC
+LIMIT $6 OFFSET $5
+`
+
+type ListAdsByAdvertiserFilteredParams struct {
+	AdvertiserID uuid.UUID      `json:"advertiser_id"`
+	Q            sql.NullString `json:"q"`
+	SortBy       string         `json:"sort_by"`
+	SortDir      string         `json:"sort_dir"`
+	Offset       int32          `json:"offset"`
+	Limit        int32          `json:"limit"`
+}
+
+func (q *Queries) ListAdsByAdvertiserFiltered(ctx context.Context, arg ListAdsByAdvertiserFilteredParams) ([]Ad, error) {
+	rows, err := q.db.QueryContext(ctx, listAdsByAdvertiserFiltered,
+		arg.AdvertiserID,
+		arg.Q,
+		arg.SortBy,
+		arg.SortDir,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

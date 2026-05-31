@@ -19,3 +19,5 @@ sql:
             nullable: true
           - db_type: "user_role"
             go_type: "string"
+          - db_type: "transaction_status"
+            go_type: "string"

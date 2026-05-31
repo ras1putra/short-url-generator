@@ -24,6 +24,24 @@ func (q *Queries) CountFaucetClaims(ctx context.Context, userID uuid.UUID) (int6
 	return count, err
 }
 
+const countFaucetClaimsByUserFiltered = `-- name: CountFaucetClaimsByUserFiltered :one
+SELECT COUNT(*) FROM faucet_claims
+WHERE user_id = $1
+  AND ($2::text IS NULL OR $2 = '' OR tx_hash::text ILIKE '%' || $2 || '%')
+`
+
+type CountFaucetClaimsByUserFilteredParams struct {
+	UserID uuid.UUID      `json:"user_id"`
+	Q      sql.NullString `json:"q"`
+}
+
+func (q *Queries) CountFaucetClaimsByUserFiltered(ctx context.Context, arg CountFaucetClaimsByUserFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countFaucetClaimsByUserFiltered, arg.UserID, arg.Q)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countFaucetClaimsToday = `-- name: CountFaucetClaimsToday :one
 SELECT COUNT(*) FROM faucet_claims
 WHERE user_id = $1
@@ -77,6 +95,66 @@ type GetFaucetClaimByUserParams struct {
 
 func (q *Queries) GetFaucetClaimByUser(ctx context.Context, arg GetFaucetClaimByUserParams) ([]FaucetClaim, error) {
 	rows, err := q.db.QueryContext(ctx, getFaucetClaimByUser, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FaucetClaim
+	for rows.Next() {
+		var i FaucetClaim
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Amount,
+			&i.TxHash,
+			&i.ClaimedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFaucetClaimByUserFiltered = `-- name: GetFaucetClaimByUserFiltered :many
+SELECT id, user_id, amount, tx_hash, claimed_at FROM faucet_claims
+WHERE user_id = $1
+  AND ($2::text IS NULL OR $2 = '' OR tx_hash::text ILIKE '%' || $2 || '%')
+ORDER BY
+  CASE WHEN $3::text = 'amount' AND $4::text = 'ASC' THEN amount::text END ASC NULLS LAST,
+  CASE WHEN $3::text = 'amount' AND $4::text = 'DESC' THEN amount::text END DESC NULLS LAST,
+  CASE WHEN $3::text = 'tx_hash' AND $4::text = 'ASC' THEN tx_hash::text END ASC NULLS LAST,
+  CASE WHEN $3::text = 'tx_hash' AND $4::text = 'DESC' THEN tx_hash::text END DESC NULLS LAST,
+  CASE WHEN $3::text = 'claimed_at' AND $4::text = 'ASC' THEN claimed_at::text END ASC NULLS LAST,
+  CASE WHEN $3::text = 'claimed_at' AND $4::text = 'DESC' THEN claimed_at::text END DESC NULLS LAST,
+  claimed_at DESC
+LIMIT $6 OFFSET $5
+`
+
+type GetFaucetClaimByUserFilteredParams struct {
+	UserID  uuid.UUID      `json:"user_id"`
+	Q       sql.NullString `json:"q"`
+	SortBy  string         `json:"sort_by"`
+	SortDir string         `json:"sort_dir"`
+	Offset  int32          `json:"offset"`
+	Limit   int32          `json:"limit"`
+}
+
+func (q *Queries) GetFaucetClaimByUserFiltered(ctx context.Context, arg GetFaucetClaimByUserFilteredParams) ([]FaucetClaim, error) {
+	rows, err := q.db.QueryContext(ctx, getFaucetClaimByUserFiltered,
+		arg.UserID,
+		arg.Q,
+		arg.SortBy,
+		arg.SortDir,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

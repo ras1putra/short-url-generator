@@ -15,13 +15,13 @@ SELECT * FROM ads WHERE advertiser_id = $1 ORDER BY created_at DESC;
 -- name: GetActiveAds :many
 SELECT * FROM ads 
 WHERE status = 'active' 
-AND remaining_budget > 0 
+AND remaining_budget >= (cpm / 1000)
 ORDER BY cpm DESC;
 
 -- name: GetActiveAdsByCategory :many
 SELECT * FROM ads 
 WHERE status = 'active' 
-AND remaining_budget > 0 
+AND remaining_budget >= (cpm / 1000)
 AND category = ANY($1::text[])
 ORDER BY cpm DESC;
 
@@ -64,3 +64,29 @@ FROM ads
 WHERE image_url IS NOT NULL
   AND image_url <> ''
   AND status <> 'deleted';
+
+-- name: CountAdsByAdvertiser :one
+SELECT COUNT(*) FROM ads WHERE advertiser_id = $1;
+
+-- name: ListAdsByAdvertiserFiltered :many
+SELECT * FROM ads
+WHERE advertiser_id = sqlc.arg('advertiser_id')
+  AND (sqlc.narg('q')::text IS NULL OR sqlc.narg('q') = '' OR title ILIKE '%' || sqlc.narg('q') || '%')
+ORDER BY
+  CASE WHEN sqlc.arg('sort_by')::text = 'title' AND sqlc.arg('sort_dir')::text = 'asc' THEN title END ASC NULLS LAST,
+  CASE WHEN sqlc.arg('sort_by')::text = 'title' AND sqlc.arg('sort_dir')::text = 'desc' THEN title END DESC NULLS LAST,
+  CASE WHEN sqlc.arg('sort_by')::text = 'status' AND sqlc.arg('sort_dir')::text = 'asc' THEN status END ASC NULLS LAST,
+  CASE WHEN sqlc.arg('sort_by')::text = 'status' AND sqlc.arg('sort_dir')::text = 'desc' THEN status END DESC NULLS LAST,
+  CASE WHEN sqlc.arg('sort_by')::text = 'created_at' AND sqlc.arg('sort_dir')::text = 'asc' THEN created_at::text END ASC NULLS LAST,
+  CASE WHEN sqlc.arg('sort_by')::text = 'created_at' AND sqlc.arg('sort_dir')::text = 'desc' THEN created_at::text END DESC NULLS LAST,
+  CASE WHEN sqlc.arg('sort_by')::text = 'budget' AND sqlc.arg('sort_dir')::text = 'asc' THEN remaining_budget END ASC NULLS LAST,
+  CASE WHEN sqlc.arg('sort_by')::text = 'budget' AND sqlc.arg('sort_dir')::text = 'desc' THEN remaining_budget END DESC NULLS LAST,
+  CASE WHEN sqlc.arg('sort_by')::text = 'cpm' AND sqlc.arg('sort_dir')::text = 'asc' THEN cpm END ASC NULLS LAST,
+  CASE WHEN sqlc.arg('sort_by')::text = 'cpm' AND sqlc.arg('sort_dir')::text = 'desc' THEN cpm END DESC NULLS LAST,
+  created_at DESC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: CountAdsByAdvertiserFiltered :one
+SELECT COUNT(*) FROM ads
+WHERE advertiser_id = sqlc.arg('advertiser_id')
+  AND (sqlc.narg('q')::text IS NULL OR sqlc.narg('q') = '' OR title ILIKE '%' || sqlc.narg('q') || '%');

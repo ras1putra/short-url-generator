@@ -7,6 +7,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -17,14 +18,14 @@ INSERT INTO users (
 ) VALUES (
   $1, $2, $3, $4
 )
-RETURNING id, name, email, password, created_at, role
+RETURNING id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at
 `
 
 type CreateUserParams struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	Name     string         `json:"name"`
+	Email    string         `json:"email"`
+	Password sql.NullString `json:"password"`
+	Role     string         `json:"role"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -42,12 +43,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Password,
 		&i.CreatedAt,
 		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, password, created_at, role FROM users
+SELECT id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at FROM users
 WHERE email = $1 LIMIT 1
 `
 
@@ -61,12 +67,41 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Password,
 		&i.CreatedAt,
 		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
+	)
+	return i, err
+}
+
+const getUserByEmailVerificationToken = `-- name: GetUserByEmailVerificationToken :one
+SELECT id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at FROM users
+WHERE email_verification_token = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByEmailVerificationToken(ctx context.Context, emailVerificationToken sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmailVerificationToken, emailVerificationToken)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, password, created_at, role FROM users
+SELECT id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -80,12 +115,148 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Password,
 		&i.CreatedAt,
 		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
+	)
+	return i, err
+}
+
+const getUserByPasswordResetToken = `-- name: GetUserByPasswordResetToken :one
+SELECT id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at FROM users
+WHERE password_reset_token = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByPasswordResetToken(ctx context.Context, passwordResetToken sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByPasswordResetToken, passwordResetToken)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
+	)
+	return i, err
+}
+
+const updateUserEmailVerificationToken = `-- name: UpdateUserEmailVerificationToken :one
+UPDATE users SET email_verification_token = $2, email_verification_sent_at = NOW() WHERE id = $1 RETURNING id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at
+`
+
+type UpdateUserEmailVerificationTokenParams struct {
+	ID                     uuid.UUID      `json:"id"`
+	EmailVerificationToken sql.NullString `json:"email_verification_token"`
+}
+
+func (q *Queries) UpdateUserEmailVerificationToken(ctx context.Context, arg UpdateUserEmailVerificationTokenParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserEmailVerificationToken, arg.ID, arg.EmailVerificationToken)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
+	)
+	return i, err
+}
+
+const updateUserEmailVerified = `-- name: UpdateUserEmailVerified :one
+UPDATE users SET email_verified = TRUE, email_verification_token = NULL, email_verification_sent_at = NULL WHERE id = $1 RETURNING id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at
+`
+
+func (q *Queries) UpdateUserEmailVerified(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserEmailVerified, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
+	)
+	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :one
+UPDATE users SET password = $2, password_reset_token = NULL, password_reset_sent_at = NULL WHERE id = $1 RETURNING id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at
+`
+
+type UpdateUserPasswordParams struct {
+	ID       uuid.UUID      `json:"id"`
+	Password sql.NullString `json:"password"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserPassword, arg.ID, arg.Password)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
+	)
+	return i, err
+}
+
+const updateUserPasswordResetToken = `-- name: UpdateUserPasswordResetToken :one
+UPDATE users SET password_reset_token = $2, password_reset_sent_at = NOW() WHERE id = $1 RETURNING id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at
+`
+
+type UpdateUserPasswordResetTokenParams struct {
+	ID                 uuid.UUID      `json:"id"`
+	PasswordResetToken sql.NullString `json:"password_reset_token"`
+}
+
+func (q *Queries) UpdateUserPasswordResetToken(ctx context.Context, arg UpdateUserPasswordResetTokenParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserPasswordResetToken, arg.ID, arg.PasswordResetToken)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
 	)
 	return i, err
 }
 
 const updateUserRole = `-- name: UpdateUserRole :one
-UPDATE users SET role = $2 WHERE id = $1 RETURNING id, name, email, password, created_at, role
+UPDATE users SET role = $2 WHERE id = $1 RETURNING id, name, email, password, created_at, role, email_verified, email_verification_token, email_verification_sent_at, password_reset_token, password_reset_sent_at
 `
 
 type UpdateUserRoleParams struct {
@@ -103,6 +274,11 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 		&i.Password,
 		&i.CreatedAt,
 		&i.Role,
+		&i.EmailVerified,
+		&i.EmailVerificationToken,
+		&i.EmailVerificationSentAt,
+		&i.PasswordResetToken,
+		&i.PasswordResetSentAt,
 	)
 	return i, err
 }

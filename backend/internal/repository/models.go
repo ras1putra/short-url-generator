@@ -81,11 +81,20 @@ type FaucetClaim struct {
 	ClaimedAt time.Time      `json:"claimed_at"`
 }
 
+type OauthAccount struct {
+	ID         uuid.UUID `json:"id"`
+	UserID     uuid.UUID `json:"user_id"`
+	Provider   string    `json:"provider"`
+	ProviderID string    `json:"provider_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 type Transaction struct {
 	ID        uuid.UUID             `json:"id"`
 	UserID    uuid.UUID             `json:"user_id"`
 	Amount    string                `json:"amount"`
 	Type      string                `json:"type"`
+	Status    string                `json:"status"`
 	TxHash    sql.NullString        `json:"tx_hash"`
 	Metadata  pqtype.NullRawMessage `json:"metadata"`
 	CreatedAt time.Time             `json:"created_at"`
@@ -105,12 +114,17 @@ type Url struct {
 }
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	Password  string    `json:"password"`
-	CreatedAt time.Time `json:"created_at"`
-	Role      string    `json:"role"`
+	ID                      uuid.UUID      `json:"id"`
+	Name                    string         `json:"name"`
+	Email                   string         `json:"email"`
+	Password                sql.NullString `json:"password"`
+	CreatedAt               time.Time      `json:"created_at"`
+	Role                    string         `json:"role"`
+	EmailVerified           bool           `json:"email_verified"`
+	EmailVerificationToken  sql.NullString `json:"email_verification_token"`
+	EmailVerificationSentAt sql.NullTime   `json:"email_verification_sent_at"`
+	PasswordResetToken      sql.NullString `json:"password_reset_token"`
+	PasswordResetSentAt     sql.NullTime   `json:"password_reset_sent_at"`
 }
 
 type Wallet struct {

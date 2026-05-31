@@ -6,24 +6,37 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
 
 type Querier interface {
+	CountAdsByAdvertiser(ctx context.Context, advertiserID uuid.UUID) (int64, error)
+	CountAdsByAdvertiserFiltered(ctx context.Context, arg CountAdsByAdvertiserFilteredParams) (int64, error)
 	CountFaucetClaims(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountFaucetClaimsByUserFiltered(ctx context.Context, arg CountFaucetClaimsByUserFilteredParams) (int64, error)
 	CountFaucetClaimsToday(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountLinkAdEvents(ctx context.Context, slug string) (int64, error)
+	CountLinkAdEventsFiltered(ctx context.Context, slug string) (int64, error)
+	CountTransactionsByUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountTransactionsByUserFiltered(ctx context.Context, arg CountTransactionsByUserFilteredParams) (int64, error)
 	CountURLsByUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountURLsByUserFiltered(ctx context.Context, arg CountURLsByUserFilteredParams) (int64, error)
 	CreateAd(ctx context.Context, arg CreateAdParams) (Ad, error)
 	CreateAdEvent(ctx context.Context, arg CreateAdEventParams) (AdEvent, error)
 	CreateFaucetClaim(ctx context.Context, arg CreateFaucetClaimParams) (FaucetClaim, error)
+	CreateOAuthAccount(ctx context.Context, arg CreateOAuthAccountParams) error
+	CreatePendingTransaction(ctx context.Context, arg CreatePendingTransactionParams) (Transaction, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
 	CreateURL(ctx context.Context, arg CreateURLParams) (Url, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateWallet(ctx context.Context, arg CreateWalletParams) error
 	DeductAdBudget(ctx context.Context, arg DeductAdBudgetParams) error
 	DeleteExpiredURLs(ctx context.Context) error
+	DeleteOAuthAccount(ctx context.Context, id uuid.UUID) error
 	DeleteURL(ctx context.Context, arg DeleteURLParams) error
+	FailStalePendingTransactions(ctx context.Context) error
 	GetActiveAds(ctx context.Context) ([]Ad, error)
 	GetActiveAdsByCategory(ctx context.Context, dollar_1 []string) ([]Ad, error)
 	GetAdByID(ctx context.Context, id uuid.UUID) (Ad, error)
@@ -32,26 +45,45 @@ type Querier interface {
 	GetCPMByAdType(ctx context.Context, adType string) (string, error)
 	GetCategoryMultiplier(ctx context.Context, category string) (string, error)
 	GetFaucetClaimByUser(ctx context.Context, arg GetFaucetClaimByUserParams) ([]FaucetClaim, error)
+	GetFaucetClaimByUserFiltered(ctx context.Context, arg GetFaucetClaimByUserFilteredParams) ([]FaucetClaim, error)
+	GetLinkAdEvents(ctx context.Context, arg GetLinkAdEventsParams) ([]GetLinkAdEventsRow, error)
+	GetLinkAdEventsFiltered(ctx context.Context, arg GetLinkAdEventsFilteredParams) ([]GetLinkAdEventsFilteredRow, error)
+	GetOAuthAccountByProvider(ctx context.Context, arg GetOAuthAccountByProviderParams) (OauthAccount, error)
+	GetPendingWithdrawalByRequestID(ctx context.Context, arg GetPendingWithdrawalByRequestIDParams) (Transaction, error)
 	GetReferencedMediaURLs(ctx context.Context) ([]string, error)
 	GetStatsBySlug(ctx context.Context, slug string) ([]GetStatsBySlugRow, error)
 	GetTotalClicksBySlug(ctx context.Context, slug string) (int64, error)
 	GetTotalClicksByUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	GetTransactionByHash(ctx context.Context, txHash sql.NullString) (Transaction, error)
 	GetURLBySlug(ctx context.Context, slug string) (Url, error)
 	GetUniqueClicksBySlug(ctx context.Context, slug string) (int64, error)
 	GetUniqueClicksByUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByEmailVerificationToken(ctx context.Context, emailVerificationToken sql.NullString) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	GetUserByPasswordResetToken(ctx context.Context, passwordResetToken sql.NullString) (User, error)
 	GetWalletByUserID(ctx context.Context, userID uuid.UUID) (Wallet, error)
 	ListAdCategories(ctx context.Context) ([]AdCategory, error)
 	ListAdTypes(ctx context.Context) ([]ListAdTypesRow, error)
 	ListAdsByAdvertiser(ctx context.Context, advertiserID uuid.UUID) ([]Ad, error)
+	ListAdsByAdvertiserFiltered(ctx context.Context, arg ListAdsByAdvertiserFilteredParams) ([]Ad, error)
+	ListOAuthAccountsByUserID(ctx context.Context, userID uuid.UUID) ([]OauthAccount, error)
+	ListPendingWithdrawalFeesByRequestID(ctx context.Context, arg ListPendingWithdrawalFeesByRequestIDParams) ([]Transaction, error)
 	ListTransactionsByUser(ctx context.Context, arg ListTransactionsByUserParams) ([]Transaction, error)
+	ListTransactionsByUserFiltered(ctx context.Context, arg ListTransactionsByUserFilteredParams) ([]Transaction, error)
 	ListURLsByUser(ctx context.Context, userID uuid.UUID) ([]Url, error)
+	ListURLsByUserFiltered(ctx context.Context, arg ListURLsByUserFilteredParams) ([]Url, error)
 	ListURLsByUserPaginated(ctx context.Context, arg ListURLsByUserPaginatedParams) ([]Url, error)
 	SaveClick(ctx context.Context, arg SaveClickParams) (Click, error)
 	UpdateAd(ctx context.Context, arg UpdateAdParams) (Ad, error)
 	UpdateAdStatus(ctx context.Context, arg UpdateAdStatusParams) error
+	UpdateTransactionHashAndStatusByID(ctx context.Context, arg UpdateTransactionHashAndStatusByIDParams) (Transaction, error)
+	UpdateTransactionStatus(ctx context.Context, arg UpdateTransactionStatusParams) (Transaction, error)
 	UpdateURL(ctx context.Context, arg UpdateURLParams) (Url, error)
+	UpdateUserEmailVerificationToken(ctx context.Context, arg UpdateUserEmailVerificationTokenParams) (User, error)
+	UpdateUserEmailVerified(ctx context.Context, id uuid.UUID) (User, error)
+	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error)
+	UpdateUserPasswordResetToken(ctx context.Context, arg UpdateUserPasswordResetTokenParams) (User, error)
 	UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error)
 	UpdateWalletBalance(ctx context.Context, arg UpdateWalletBalanceParams) (Wallet, error)
 }

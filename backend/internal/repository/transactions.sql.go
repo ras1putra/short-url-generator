@@ -13,13 +13,81 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
+const countTransactionsByUser = `-- name: CountTransactionsByUser :one
+SELECT COUNT(*) FROM transactions WHERE user_id = $1
+`
+
+func (q *Queries) CountTransactionsByUser(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countTransactionsByUser, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countTransactionsByUserFiltered = `-- name: CountTransactionsByUserFiltered :one
+SELECT COUNT(*) FROM transactions
+WHERE user_id = $1
+  AND ($2::text IS NULL OR $2 = '' OR type ILIKE '%' || $2 || '%')
+`
+
+type CountTransactionsByUserFilteredParams struct {
+	UserID uuid.UUID      `json:"user_id"`
+	Q      sql.NullString `json:"q"`
+}
+
+func (q *Queries) CountTransactionsByUserFiltered(ctx context.Context, arg CountTransactionsByUserFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countTransactionsByUserFiltered, arg.UserID, arg.Q)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createPendingTransaction = `-- name: CreatePendingTransaction :one
+INSERT INTO transactions (
+    user_id, amount, type, tx_hash, metadata, status
+) VALUES (
+    $1, $2, $3, $4, $5, 'PENDING'::transaction_status
+)
+RETURNING id, user_id, amount, type, status, tx_hash, metadata, created_at
+`
+
+type CreatePendingTransactionParams struct {
+	UserID   uuid.UUID             `json:"user_id"`
+	Amount   string                `json:"amount"`
+	Type     string                `json:"type"`
+	TxHash   sql.NullString        `json:"tx_hash"`
+	Metadata pqtype.NullRawMessage `json:"metadata"`
+}
+
+func (q *Queries) CreatePendingTransaction(ctx context.Context, arg CreatePendingTransactionParams) (Transaction, error) {
+	row := q.db.QueryRowContext(ctx, createPendingTransaction,
+		arg.UserID,
+		arg.Amount,
+		arg.Type,
+		arg.TxHash,
+		arg.Metadata,
+	)
+	var i Transaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Amount,
+		&i.Type,
+		&i.Status,
+		&i.TxHash,
+		&i.Metadata,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createTransaction = `-- name: CreateTransaction :one
 INSERT INTO transactions (
     user_id, amount, type, tx_hash, metadata
 ) VALUES (
     $1, $2, $3, $4, $5
 )
-RETURNING id, user_id, amount, type, tx_hash, metadata, created_at
+RETURNING id, user_id, amount, type, status, tx_hash, metadata, created_at
 `
 
 type CreateTransactionParams struct {
@@ -44,6 +112,7 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 		&i.UserID,
 		&i.Amount,
 		&i.Type,
+		&i.Status,
 		&i.TxHash,
 		&i.Metadata,
 		&i.CreatedAt,
@@ -51,8 +120,117 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 	return i, err
 }
 
+const failStalePendingTransactions = `-- name: FailStalePendingTransactions :exec
+UPDATE transactions
+SET status = 'FAILED'::transaction_status
+WHERE status = 'PENDING'::transaction_status
+  AND created_at < NOW() - INTERVAL '15 minutes'
+`
+
+func (q *Queries) FailStalePendingTransactions(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, failStalePendingTransactions)
+	return err
+}
+
+const getPendingWithdrawalByRequestID = `-- name: GetPendingWithdrawalByRequestID :one
+SELECT id, user_id, amount, type, status, tx_hash, metadata, created_at FROM transactions
+WHERE user_id = $1
+  AND type = 'WITHDRAWAL'
+  AND status = 'PENDING'::transaction_status
+  AND tx_hash IS NULL
+  AND metadata->>'request_id' = $2::text
+LIMIT 1
+`
+
+type GetPendingWithdrawalByRequestIDParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Column2 string    `json:"column_2"`
+}
+
+func (q *Queries) GetPendingWithdrawalByRequestID(ctx context.Context, arg GetPendingWithdrawalByRequestIDParams) (Transaction, error) {
+	row := q.db.QueryRowContext(ctx, getPendingWithdrawalByRequestID, arg.UserID, arg.Column2)
+	var i Transaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Amount,
+		&i.Type,
+		&i.Status,
+		&i.TxHash,
+		&i.Metadata,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getTransactionByHash = `-- name: GetTransactionByHash :one
+SELECT id, user_id, amount, type, status, tx_hash, metadata, created_at FROM transactions WHERE tx_hash = $1
+`
+
+func (q *Queries) GetTransactionByHash(ctx context.Context, txHash sql.NullString) (Transaction, error) {
+	row := q.db.QueryRowContext(ctx, getTransactionByHash, txHash)
+	var i Transaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Amount,
+		&i.Type,
+		&i.Status,
+		&i.TxHash,
+		&i.Metadata,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const listPendingWithdrawalFeesByRequestID = `-- name: ListPendingWithdrawalFeesByRequestID :many
+SELECT id, user_id, amount, type, status, tx_hash, metadata, created_at FROM transactions
+WHERE user_id = $1
+  AND type = 'WITHDRAWAL_FEE'
+  AND status = 'PENDING'::transaction_status
+  AND tx_hash IS NULL
+  AND metadata->>'request_id' = $2::text
+`
+
+type ListPendingWithdrawalFeesByRequestIDParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Column2 string    `json:"column_2"`
+}
+
+func (q *Queries) ListPendingWithdrawalFeesByRequestID(ctx context.Context, arg ListPendingWithdrawalFeesByRequestIDParams) ([]Transaction, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingWithdrawalFeesByRequestID, arg.UserID, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Transaction
+	for rows.Next() {
+		var i Transaction
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Amount,
+			&i.Type,
+			&i.Status,
+			&i.TxHash,
+			&i.Metadata,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTransactionsByUser = `-- name: ListTransactionsByUser :many
-SELECT id, user_id, amount, type, tx_hash, metadata, created_at FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
+SELECT id, user_id, amount, type, status, tx_hash, metadata, created_at FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
 `
 
 type ListTransactionsByUserParams struct {
@@ -75,6 +253,7 @@ func (q *Queries) ListTransactionsByUser(ctx context.Context, arg ListTransactio
 			&i.UserID,
 			&i.Amount,
 			&i.Type,
+			&i.Status,
 			&i.TxHash,
 			&i.Metadata,
 			&i.CreatedAt,
@@ -90,4 +269,126 @@ func (q *Queries) ListTransactionsByUser(ctx context.Context, arg ListTransactio
 		return nil, err
 	}
 	return items, nil
+}
+
+const listTransactionsByUserFiltered = `-- name: ListTransactionsByUserFiltered :many
+SELECT id, user_id, amount, type, status, tx_hash, metadata, created_at FROM transactions
+WHERE user_id = $1
+  AND ($2::text IS NULL OR $2 = '' OR type ILIKE '%' || $2 || '%')
+ORDER BY
+  CASE WHEN $3::text = 'amount' AND $4::text = 'asc' THEN amount END ASC NULLS LAST,
+  CASE WHEN $3::text = 'amount' AND $4::text = 'desc' THEN amount END DESC NULLS LAST,
+  CASE WHEN $3::text = 'type' AND $4::text = 'asc' THEN type END ASC NULLS LAST,
+  CASE WHEN $3::text = 'type' AND $4::text = 'desc' THEN type END DESC NULLS LAST,
+  CASE WHEN $3::text = 'status' AND $4::text = 'asc' THEN status END ASC NULLS LAST,
+  CASE WHEN $3::text = 'status' AND $4::text = 'desc' THEN status END DESC NULLS LAST,
+  CASE WHEN $3::text = 'created_at' AND $4::text = 'asc' THEN created_at::text END ASC NULLS LAST,
+  CASE WHEN $3::text = 'created_at' AND $4::text = 'desc' THEN created_at::text END DESC NULLS LAST,
+  created_at DESC
+LIMIT $6 OFFSET $5
+`
+
+type ListTransactionsByUserFilteredParams struct {
+	UserID  uuid.UUID      `json:"user_id"`
+	Q       sql.NullString `json:"q"`
+	SortBy  string         `json:"sort_by"`
+	SortDir string         `json:"sort_dir"`
+	Offset  int32          `json:"offset"`
+	Limit   int32          `json:"limit"`
+}
+
+func (q *Queries) ListTransactionsByUserFiltered(ctx context.Context, arg ListTransactionsByUserFilteredParams) ([]Transaction, error) {
+	rows, err := q.db.QueryContext(ctx, listTransactionsByUserFiltered,
+		arg.UserID,
+		arg.Q,
+		arg.SortBy,
+		arg.SortDir,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Transaction
+	for rows.Next() {
+		var i Transaction
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Amount,
+			&i.Type,
+			&i.Status,
+			&i.TxHash,
+			&i.Metadata,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateTransactionHashAndStatusByID = `-- name: UpdateTransactionHashAndStatusByID :one
+UPDATE transactions
+SET tx_hash = $2, status = $3
+WHERE id = $1
+RETURNING id, user_id, amount, type, status, tx_hash, metadata, created_at
+`
+
+type UpdateTransactionHashAndStatusByIDParams struct {
+	ID     uuid.UUID      `json:"id"`
+	TxHash sql.NullString `json:"tx_hash"`
+	Status string         `json:"status"`
+}
+
+func (q *Queries) UpdateTransactionHashAndStatusByID(ctx context.Context, arg UpdateTransactionHashAndStatusByIDParams) (Transaction, error) {
+	row := q.db.QueryRowContext(ctx, updateTransactionHashAndStatusByID, arg.ID, arg.TxHash, arg.Status)
+	var i Transaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Amount,
+		&i.Type,
+		&i.Status,
+		&i.TxHash,
+		&i.Metadata,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateTransactionStatus = `-- name: UpdateTransactionStatus :one
+UPDATE transactions
+SET status = $2
+WHERE tx_hash = $1
+RETURNING id, user_id, amount, type, status, tx_hash, metadata, created_at
+`
+
+type UpdateTransactionStatusParams struct {
+	TxHash sql.NullString `json:"tx_hash"`
+	Status string         `json:"status"`
+}
+
+func (q *Queries) UpdateTransactionStatus(ctx context.Context, arg UpdateTransactionStatusParams) (Transaction, error) {
+	row := q.db.QueryRowContext(ctx, updateTransactionStatus, arg.TxHash, arg.Status)
+	var i Transaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Amount,
+		&i.Type,
+		&i.Status,
+		&i.TxHash,
+		&i.Metadata,
+		&i.CreatedAt,
+	)
+	return i, err
 }
