@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"database/sql"
 
 	"github.com/shopspring/decimal"
 
@@ -28,14 +29,14 @@ func appErrCode(err error) int {
 func TestService_GetWallet_Success(t *testing.T) {
 	_ = zap.ReplaceGlobals(zap.NewNop())
 	_, queries := testutil.SetupTestDB(t)
-	svc := NewWalletService(queries, nil, nil)
+	svc := NewWalletService(queries, nil, nil, 0.005)
 	ctx := context.Background()
 
 	// Create user
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Wallet User",
 		Email:    "wallet@example.com",
-		Password: "password",
+		Password: sql.NullString{String: "password", Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
@@ -55,7 +56,7 @@ func TestService_GetWallet_Success(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	resp, err := svc.GetWallet(ctx, user.ID)
+	resp, err := svc.GetWallet(ctx, user.ID, 1, 10, "", "created_at", "desc")
 	require.NoError(t, err)
 	assert.True(t, decimal.NewFromFloat(100.00).Equal(resp.Balance))
 	assert.Len(t, resp.Transactions, 1)
@@ -67,11 +68,11 @@ func TestService_GetWallet_Success(t *testing.T) {
 func TestService_GetWallet_NotFound(t *testing.T) {
 	_ = zap.ReplaceGlobals(zap.NewNop())
 	_, queries := testutil.SetupTestDB(t)
-	svc := NewWalletService(queries, nil, nil)
+	svc := NewWalletService(queries, nil, nil, 0.005)
 	ctx := context.Background()
 
 	userID := uuid.New()
-	resp, err := svc.GetWallet(ctx, userID)
+	resp, err := svc.GetWallet(ctx, userID, 1, 10, "", "created_at", "desc")
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Equal(t, 404, appErrCode(err))

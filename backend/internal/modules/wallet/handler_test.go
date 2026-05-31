@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http/httptest"
 	"testing"
+	"database/sql"
 
 	"urlshortener/internal/repository"
 	"urlshortener/internal/testutil"
@@ -19,7 +20,7 @@ import (
 func setupWalletApp(t *testing.T) (*fiber.App, *repository.Queries) {
 	_ = zap.ReplaceGlobals(zap.NewNop())
 	_, queries := testutil.SetupTestDB(t)
-	svc := NewWalletService(queries, nil, nil)
+	svc := NewWalletService(queries, nil, nil, 0.005)
 	handler := NewWalletHandler(svc)
 
 	app := fiber.New(fiber.Config{ErrorHandler: response.ErrorHandler})
@@ -44,7 +45,7 @@ func TestGetWallet_Success(t *testing.T) {
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Wallet User",
 		Email:    "wallet@example.com",
-		Password: "password",
+		Password: sql.NullString{String: "password", Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
