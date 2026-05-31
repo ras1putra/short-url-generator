@@ -77,9 +77,9 @@ export function MediaUploader({ value, onChange, targetRatio, recommendedResolut
                 preload="metadata"
                 className="max-h-48 object-contain w-full rounded-lg pointer-events-none"
               />
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-[10px] font-mono text-cyan-400">
-                <FileVideo size={10} />
-                VIDEO AD
+              <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-xs font-mono text-cyan-400">
+                <FileVideo size={12} />
+                <span>VIDEO AD</span>
               </div>
             </div>
           ) : isGifUrl(value) ? (
@@ -90,8 +90,8 @@ export function MediaUploader({ value, onChange, targetRatio, recommendedResolut
                 alt="Ad Creative Preview"
                 className="max-h-48 w-full object-contain group-hover:scale-[1.02] transition-transform duration-500"
               />
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-[10px] font-mono text-cyan-400">
-                <ImageIcon size={10} />
+              <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-xs font-mono text-cyan-400">
+                <ImageIcon size={12} />
                 GIF AD
               </div>
             </div>
@@ -103,15 +103,15 @@ export function MediaUploader({ value, onChange, targetRatio, recommendedResolut
                 alt="Ad Creative Preview"
                 className="max-h-48 w-full object-contain group-hover:scale-[1.02] transition-transform duration-500"
               />
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-[10px] font-mono text-cyan-400">
-                <ImageIcon size={10} />
+              <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5 text-xs font-mono text-cyan-400">
+                <ImageIcon size={12} />
                 IMAGE AD
               </div>
             </div>
           )}
 
           <div className="flex items-center justify-between w-full px-2 py-1">
-            <span className="text-[11px] font-mono text-white/30 truncate max-w-[80%]">
+            <span className="text-xs font-mono text-white/30 truncate max-w-[80%]">
               {value}
             </span>
             <button

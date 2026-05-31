@@ -4,126 +4,169 @@ import Loading from "@/components/ui/Loading";
 import { format } from "date-fns";
 import { ArrowDownToLine, ExternalLink } from "lucide-react";
 import { useConfigStore } from "@/store/useConfigStore";
-import type { Transaction, PendingTransaction } from "@/types/ads";
+import type { Transaction } from "@/types/ads";
+import {
+  BLOCK_CONFIRMATIONS,
+  TX_STATUS_PENDING,
+  TX_STATUS_FAILED,
+  TX_TYPE_DEPOSIT,
+  TX_TYPE_EARNING,
+  TX_TYPE_AD_EARNING,
+  TX_TYPE_AD_SPEND,
+  TX_TYPE_WITHDRAWAL,
+  TX_TYPE_WITHDRAWAL_FEE,
+} from "@/lib/constants";
+import DataTable, { Column } from "@/components/ui/DataTable";
+import { formatBalance } from "@/lib/wallet";
 
 interface TransactionTableProps {
   transactions: Transaction[] | undefined;
-  pendingTransactions?: PendingTransaction[];
+  confirmations: Record<string, number>;
   isLoading: boolean;
+  isFetching?: boolean;
   symbol?: string;
+  page?: number;
+  totalPages?: number;
+  total?: number;
+  search?: string;
+  sortBy?: string;
+  sortDir?: string;
+  onPageChange?: (page: number) => void;
+  onPerPageChange?: (perPage: number) => void;
+  onSearchChange?: (search: string) => void;
+  onSortChange?: (col: string) => void;
 }
 
-export default function TransactionTable({ transactions, pendingTransactions, isLoading, symbol = "TK" }: TransactionTableProps) {
+export default function TransactionTable({
+  transactions, confirmations, isLoading, isFetching = false, symbol = "TK",
+  page = 1, totalPages = 1, total = 0,
+  search = "", sortBy = "created_at", sortDir = "desc",
+  onPageChange, onPerPageChange, onSearchChange, onSortChange,
+}: TransactionTableProps) {
   const explorerUrl = useConfigStore((s) => s.config)?.payment_chain?.explorer_url;
 
-  if (isLoading) {
-    return <Loading height="h-auto" className="p-16" />;
-  }
+  const getRowClassName = (tx: Transaction) => {
+    const isPending = tx.status === TX_STATUS_PENDING;
+    const isFailed = tx.status === TX_STATUS_FAILED;
+    if (isPending) {
+      return "bg-white/[0.01] border-l-2 border-yellow-500/50 animate-pulse";
+    }
+    if (isFailed) {
+      return "opacity-60 border-l-2 border-red-500/50";
+    }
+    return "";
+  };
 
-  const confirmedTxHashes = new Set(transactions?.map((tx) => tx.tx_hash).filter(Boolean));
-  const filteredPending = pendingTransactions?.filter((tx) => !confirmedTxHashes.has(tx.tx_hash)) ?? [];
-  const hasPending = filteredPending.length > 0;
-  const hasTransactions = transactions && transactions.length > 0;
-
-  if (!hasTransactions && !hasPending) {
-    return (
-      <div className="rounded-2xl bg-white/[0.02] border border-white/[0.08] p-12 flex flex-col items-center justify-center text-center">
-        <div className="h-16 w-16 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
-          <ArrowDownToLine className="h-8 w-8 text-white/30" />
+  const columns: Column<Transaction>[] = [
+    {
+      header: "Type",
+      accessorKey: "type",
+      sortable: true,
+      cell: (tx) => {
+        const isPending = tx.status === TX_STATUS_PENDING;
+        const isFailed = tx.status === TX_STATUS_FAILED;
+        if (isPending) {
+          const currentConf = confirmations[tx.tx_hash ?? ""] ?? 0;
+          return (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-yellow-500/15 text-yellow-400 ring-1 ring-yellow-500/25">
+              {tx.type} (Confirming {currentConf}/{BLOCK_CONFIRMATIONS})
+            </span>
+          );
+        }
+        if (isFailed) {
+          return (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-red-500/15 text-red-400 ring-1 ring-red-500/25 animate-pulse">
+              {tx.type} (FAILED)
+            </span>
+          );
+        }
+        return (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${tx.type === TX_TYPE_DEPOSIT
+              ? "bg-green-500/15 text-green-400 ring-1 ring-green-500/25"
+              : tx.type === TX_TYPE_EARNING || tx.type === TX_TYPE_AD_EARNING
+                ? "bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/25"
+                : tx.type === TX_TYPE_AD_SPEND
+                  ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/25"
+                  : tx.type === TX_TYPE_WITHDRAWAL || tx.type === TX_TYPE_WITHDRAWAL_FEE
+                    ? "bg-orange-500/15 text-orange-400 ring-1 ring-orange-500/25"
+                    : "bg-white/10 text-white/50 ring-1 ring-white/20"
+            }`}>
+            {tx.type.replace("_", " ")}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Amount",
+      accessorKey: "amount",
+      sortable: true,
+      className: "text-right",
+      cell: (tx) => {
+        const isFailed = tx.status === TX_STATUS_FAILED;
+        const amount = Number(tx.amount);
+        return (
+          <span className={`font-mono-dm font-medium ${isFailed ? "text-red-400 line-through" : amount >= 0 ? "text-green-400" : "text-red-400"
+            }`}>
+            {amount >= 0 ? "+" : "-"}{formatBalance(Math.abs(amount))} {symbol}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Date",
+      accessorKey: "created_at",
+      sortable: true,
+      className: "text-right",
+      cell: (tx) => (
+        <span className="text-white/50 font-mono-dm">
+          {format(new Date(tx.created_at), "MMM d, yyyy HH:mm")}
+        </span>
+      ),
+    },
+    {
+      header: "Tx Hash",
+      className: "text-right",
+      cell: (tx) => (
+        <div className="flex justify-end font-mono-dm">
+          {tx.tx_hash && explorerUrl ? (
+            <a
+              href={`${explorerUrl}/tx/${tx.tx_hash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[#22D3EE] hover:text-[#67E8F9] transition-colors"
+            >
+              {tx.tx_hash.slice(0, 10)}...
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          ) : (
+            <span className="text-white/30">—</span>
+          )}
         </div>
-        <h3 className="text-lg font-bold text-white mb-1">No transactions yet</h3>
-        <p className="text-white/50">Deposit funds to your wallet to get started.</p>
-      </div>
-    );
-  }
+      ),
+    },
+  ];
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-white/[0.06]">
-          <thead className="bg-white/[0.02]">
-            <tr>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">Type</th>
-              <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">Amount</th>
-              <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">Date</th>
-              <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm">Tx Hash</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/[0.06]">
-            {/* Pending Transactions */}
-            {hasPending && filteredPending.map((tx) => (
-              <tr key={tx.tx_hash} className="bg-white/[0.01] hover:bg-white/[0.02] transition-colors border-l-2 border-yellow-500/50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-yellow-500/15 text-yellow-400 ring-1 ring-yellow-500/25 animate-pulse">
-                    Deposit (Confirming {tx.confirmations}/{tx.target_confirmations})
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right font-mono-dm font-medium text-yellow-400">
-                  +{tx.amount.toFixed(2)} {symbol}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-white/50 font-mono-dm">
-                  {format(new Date(tx.created_at), "MMM d, yyyy HH:mm")}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-mono-dm">
-                  {tx.tx_hash && explorerUrl ? (
-                    <a
-                      href={`${explorerUrl}/tx/${tx.tx_hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[#22D3EE] hover:text-[#67E8F9] transition-colors"
-                    >
-                      {tx.tx_hash.slice(0, 10)}...
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  ) : (
-                    <span className="text-white/30">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-
-            {/* Confirmed Transactions */}
-            {hasTransactions && transactions.map((tx) => (
-              <tr key={tx.id} className="hover:bg-white/[0.02] transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${tx.type === "DEPOSIT"
-                      ? "bg-green-500/15 text-green-400 ring-1 ring-green-500/25"
-                      : tx.type === "EARNING"
-                        ? "bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/25"
-                        : tx.type === "AD_SPEND"
-                          ? "bg-red-500/15 text-red-400 ring-1 ring-red-500/25"
-                          : "bg-white/10 text-white/50 ring-1 ring-white/20"
-                    }`}>
-                    {tx.type.replace("_", " ")}
-                  </span>
-                </td>
-                <td className={`px-6 py-4 whitespace-nowrap text-right font-mono-dm font-medium ${tx.amount >= 0 ? "text-green-400" : "text-red-400"
-                  }`}>
-                  {tx.amount >= 0 ? "+" : ""}{Math.abs(tx.amount).toFixed(2)} {symbol}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-white/50 font-mono-dm">
-                  {format(new Date(tx.created_at), "MMM d, yyyy HH:mm")}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-mono-dm">
-                  {tx.tx_hash && explorerUrl ? (
-                    <a
-                      href={`${explorerUrl}/tx/${tx.tx_hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[#22D3EE] hover:text-[#67E8F9] transition-colors"
-                    >
-                      {tx.tx_hash.slice(0, 10)}...
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  ) : (
-                    <span className="text-white/30">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <DataTable
+      columns={columns}
+      data={transactions || []}
+      isLoading={isLoading}
+      isFetching={isFetching}
+      sortBy={sortBy}
+      sortDir={sortDir}
+      onSort={onSortChange}
+      page={page}
+      totalPages={totalPages}
+      totalItems={total}
+      onPageChange={onPageChange}
+      perPage={page === 1 ? undefined : undefined}
+      searchPlaceholder="Search by type..."
+      searchValue={search}
+      onSearchChange={onSearchChange}
+      getRowClassName={getRowClassName}
+      emptyIcon={<ArrowDownToLine className="h-8 w-8 text-white/30" />}
+      emptyTitle="No transactions yet"
+      emptyDescription="Deposit funds to your wallet to get started."
+    />
   );
 }

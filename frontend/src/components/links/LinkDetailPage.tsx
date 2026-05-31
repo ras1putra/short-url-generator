@@ -238,6 +238,8 @@ function EditSection({ link, slug, onClose }: { link: LinkType; slug: string; on
 <div className="flex gap-2">
                 <input
                   type="number"
+                  min="1"
+                  onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
                   className="block min-w-0 flex-1 appearance-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white placeholder-white/20 focus:border-[#6EE7B7]/50 focus:outline-none sm:text-sm transition-all"
                   placeholder={link.expires_at ? "Set new expiry" : "No expiry set"}
                   {...register("expires_value", { valueAsNumber: true })}
