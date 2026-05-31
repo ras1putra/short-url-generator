@@ -116,3 +116,66 @@ func TestNewAccessTokenResponse(t *testing.T) {
 	assert.Equal(t, "Test User", resp.User.Name)
 	assert.Equal(t, now.Format(time.RFC3339), resp.User.CreatedAt)
 }
+
+func TestMapUserToResponse_EmailVerified(t *testing.T) {
+	now := time.Now()
+	id := uuid.New()
+
+	user := repository.User{
+		ID:            id,
+		Email:         "verified@example.com",
+		Name:          "Verified User",
+		Password:      sql.NullString{String: "hash", Valid: true},
+		CreatedAt:     now,
+		EmailVerified: true,
+	}
+
+	resp := MapUserToResponse(user)
+	assert.True(t, resp.EmailVerified)
+}
+
+func TestMapUserToResponse_EmailNotVerified(t *testing.T) {
+	now := time.Now()
+	id := uuid.New()
+
+	user := repository.User{
+		ID:            id,
+		Email:         "unverified@example.com",
+		Name:          "Unverified User",
+		Password:      sql.NullString{String: "hash", Valid: true},
+		CreatedAt:     now,
+		EmailVerified: false,
+	}
+
+	resp := MapUserToResponse(user)
+	assert.False(t, resp.EmailVerified)
+}
+
+func TestSendVerificationRequest_Fields(t *testing.T) {
+	req := SendVerificationRequest{Email: "test@example.com"}
+	assert.Equal(t, "test@example.com", req.Email)
+}
+
+func TestForgotPasswordRequest_Fields(t *testing.T) {
+	req := ForgotPasswordRequest{Email: "forgot@example.com"}
+	assert.Equal(t, "forgot@example.com", req.Email)
+}
+
+func TestResetPasswordRequest_Fields(t *testing.T) {
+	req := ResetPasswordRequest{Token: "reset-token", Password: "new-password"}
+	assert.Equal(t, "reset-token", req.Token)
+	assert.Equal(t, "new-password", req.Password)
+}
+
+func TestUserResponse_Fields(t *testing.T) {
+	resp := UserResponse{
+		ID:            "user-id",
+		Email:         "user@example.com",
+		Name:          "Test",
+		Role:          "advertiser",
+		EmailVerified: true,
+		CreatedAt:     "2024-01-01T00:00:00Z",
+	}
+	assert.Equal(t, "advertiser", resp.Role)
+	assert.True(t, resp.EmailVerified)
+}
