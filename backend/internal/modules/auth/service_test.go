@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"database/sql"
 
 	"urlshortener/internal/config"
 	"urlshortener/internal/modules/auth/dto"
@@ -88,10 +89,11 @@ func TestRegister_EmailTaken(t *testing.T) {
 	ctx := context.Background()
 
 	// Pre-create the user in the database
+	passHash := hashPassword("password123")
 	_, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Existing User",
 		Email:    "test@example.com",
-		Password: hashPassword("password123"),
+		Password: sql.NullString{String: passHash, Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
@@ -113,10 +115,11 @@ func TestLogin_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Pre-create the user in the database
+	passHash := hashPassword("correct-password")
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Login User",
 		Email:    "login@example.com",
-		Password: hashPassword("correct-password"),
+		Password: sql.NullString{String: passHash, Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
@@ -140,10 +143,11 @@ func TestLogin_WrongPassword(t *testing.T) {
 	svc, queries := newTestAuthService(t)
 	ctx := context.Background()
 
+	passHash := hashPassword("correct-password")
 	_, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Login User",
 		Email:    "login@example.com",
-		Password: hashPassword("correct-password"),
+		Password: sql.NullString{String: passHash, Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
@@ -178,10 +182,11 @@ func TestRefreshToken_Success(t *testing.T) {
 	svc, queries := newTestAuthService(t)
 	ctx := context.Background()
 
+	passHash := hashPassword("password123")
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Refresh User",
 		Email:    "refresh@example.com",
-		Password: hashPassword("password123"),
+		Password: sql.NullString{String: passHash, Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
@@ -255,10 +260,11 @@ func TestUpgradeToAdvertiser_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Pre-create standard user and standard wallet
+	passHash3 := hashPassword("password123")
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Advertiser Candidate",
 		Email:    "candidate@example.com",
-		Password: hashPassword("password123"),
+		Password: sql.NullString{String: passHash3, Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)

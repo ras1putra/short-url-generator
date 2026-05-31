@@ -2,6 +2,7 @@ package dto
 
 import (
 	"testing"
+	"database/sql"
 	"time"
 
 	"urlshortener/internal/repository"
@@ -19,7 +20,7 @@ func TestMapUserToResponse(t *testing.T) {
 		ID:        id,
 		Email:     "test@example.com",
 		Name:      "Test User",
-		Password:  "hashed-password",
+		Password: sql.NullString{String: "hashed-password", Valid: true},
 		CreatedAt: now,
 	}
 
@@ -39,7 +40,7 @@ func TestMapUserToResponse_FieldsMappedCorrectly(t *testing.T) {
 		ID:        id,
 		Email:     "user@domain.org",
 		Name:      "Jane Doe",
-		Password:  "secret",
+		Password: sql.NullString{String: "secret", Valid: true},
 		CreatedAt: now,
 	}
 
@@ -59,7 +60,7 @@ func TestNewAuthResponse(t *testing.T) {
 		ID:        id,
 		Email:     "test@example.com",
 		Name:      "Test User",
-		Password:  "hashed-password",
+		Password: sql.NullString{String: "hashed-password", Valid: true},
 		CreatedAt: now,
 	}
 
@@ -80,7 +81,7 @@ func TestNewAuthResponse_NilFields(t *testing.T) {
 		ID:        id,
 		Email:     "another@test.com",
 		Name:      "Another",
-		Password:  "hash",
+		Password: sql.NullString{String: "hash", Valid: true},
 		CreatedAt: time.Now(),
 	}
 
@@ -101,7 +102,7 @@ func TestNewAccessTokenResponse(t *testing.T) {
 		ID:        id,
 		Email:     "test@example.com",
 		Name:      "Test User",
-		Password:  "hash",
+		Password: sql.NullString{String: "hash", Valid: true},
 		CreatedAt: now,
 	}
 

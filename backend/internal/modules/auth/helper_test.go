@@ -91,12 +91,12 @@ func TestIssueTokens_AdvertiserRole(t *testing.T) {
 
 func TestNewCookieHelper_SameSite_Dev(t *testing.T) {
 	cfg := &config.Config{Env: "development"}
-	h := newCookieHelper(cfg)
+	h := NewCookieHelper(cfg)
 	assert.Equal(t, "Lax", h.sameSite())
 }
 
 func TestNewCookieHelper_SameSite_Prod(t *testing.T) {
 	cfg := &config.Config{Env: "production"}
-	h := newCookieHelper(cfg)
+	h := NewCookieHelper(cfg)
 	assert.Equal(t, "Strict", h.sameSite())
 }

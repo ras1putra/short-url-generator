@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"database/sql"
 	"time"
 
 	"urlshortener/internal/config"
@@ -101,7 +102,7 @@ func TestHandlerLoginSuccess(t *testing.T) {
 	_, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Login User",
 		Email:    "handler-login@example.com",
-		Password: hashedPassword,
+		Password: sql.NullString{String: hashedPassword, Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
@@ -131,7 +132,7 @@ func TestHandlerRefreshSuccess(t *testing.T) {
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Refresh User",
 		Email:    "handler-refresh@example.com",
-		Password: "password",
+		Password: sql.NullString{String: "password", Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)
@@ -183,13 +184,13 @@ func TestHandlerLogin_InvalidJSON(t *testing.T) {
 
 func TestSameSite_Production(t *testing.T) {
 	cfg := &config.Config{Env: "production"}
-	h := newCookieHelper(cfg)
+	h := NewCookieHelper(cfg)
 	assert.Equal(t, "Strict", h.sameSite())
 }
 
 func TestSameSite_Development(t *testing.T) {
 	cfg := &config.Config{Env: "development"}
-	h := newCookieHelper(cfg)
+	h := NewCookieHelper(cfg)
 	assert.Equal(t, "Lax", h.sameSite())
 }
 
@@ -200,7 +201,7 @@ func TestHandlerUpgradeToAdvertiser_Success(t *testing.T) {
 	user, err := queries.CreateUser(ctx, repository.CreateUserParams{
 		Name:     "Upgrade User",
 		Email:    "handler-upgrade@example.com",
-		Password: "password",
+		Password: sql.NullString{String: "password", Valid: true},
 		Role:     "user",
 	})
 	require.NoError(t, err)

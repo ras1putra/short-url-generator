@@ -11,20 +11,20 @@ import (
 	"urlshortener/pkg/token"
 )
 
-type cookieHelper struct {
+type CookieHelper struct {
 	cfg *config.Config
 }
 
-func newCookieHelper(cfg *config.Config) *cookieHelper {
-	return &cookieHelper{cfg: cfg}
+func NewCookieHelper(cfg *config.Config) *CookieHelper {
+	return &CookieHelper{cfg: cfg}
 }
 
-func (h *cookieHelper) setAuthCookies(c *fiber.Ctx, accessToken, refreshToken string) {
-	h.setAccessTokenCookie(c, accessToken)
-	h.setRefreshTokenCookie(c, refreshToken)
+func (h *CookieHelper) SetAuthCookies(c *fiber.Ctx, accessToken, refreshToken string) {
+	h.SetAccessTokenCookie(c, accessToken)
+	h.SetRefreshTokenCookie(c, refreshToken)
 }
 
-func (h *cookieHelper) setAccessTokenCookie(c *fiber.Ctx, value string) {
+func (h *CookieHelper) SetAccessTokenCookie(c *fiber.Ctx, value string) {
 	c.Cookie(&fiber.Cookie{
 		Name:     constants.CookieAccessToken,
 		Value:    value,
@@ -36,7 +36,7 @@ func (h *cookieHelper) setAccessTokenCookie(c *fiber.Ctx, value string) {
 	})
 }
 
-func (h *cookieHelper) setRefreshTokenCookie(c *fiber.Ctx, value string) {
+func (h *CookieHelper) SetRefreshTokenCookie(c *fiber.Ctx, value string) {
 	c.Cookie(&fiber.Cookie{
 		Name:     constants.CookieRefreshToken,
 		Value:    value,
@@ -48,7 +48,7 @@ func (h *cookieHelper) setRefreshTokenCookie(c *fiber.Ctx, value string) {
 	})
 }
 
-func (h *cookieHelper) clearAuthCookies(c *fiber.Ctx) {
+func (h *CookieHelper) ClearAuthCookies(c *fiber.Ctx) {
 	expired := time.Now().Add(-time.Hour)
 	sameSite := h.sameSite()
 	secure := !h.cfg.IsDev()
@@ -67,7 +67,7 @@ func (h *cookieHelper) clearAuthCookies(c *fiber.Ctx) {
 	}
 }
 
-func (h *cookieHelper) sameSite() string {
+func (h *CookieHelper) sameSite() string {
 	if h.cfg.IsDev() {
 		return constants.SameSiteLax
 	}
