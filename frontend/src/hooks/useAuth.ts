@@ -156,19 +156,17 @@ export function useSendVerification() {
   });
 }
 
-export function useVerifyEmail() {
-  const router = useRouter();
-  return useMutation<void, AxiosError<ApiErrorResponse>, { token: string }>({
-    mutationFn: async (data: { token: string }) => {
-      await api.post(API_AUTH_VERIFY_EMAIL + "?token=" + data.token);
+export function useVerifyEmail(token: string) {
+  return useQuery<void, AxiosError<ApiErrorResponse>>({
+    queryKey: ["verify-email", token],
+    queryFn: async () => {
+      const response = await api.post(API_AUTH_VERIFY_EMAIL + "?token=" + token);
+      return response.data;
     },
-    onSuccess: () => {
-      toast.success("Email verified! You can now sign in.");
-      router.push(ROUTE_LOGIN);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || "Verification failed");
-    },
+    enabled: !!token,
+    retry: false,
+    staleTime: Infinity,
+    gcTime: 0,
   });
 }
 

@@ -3,22 +3,26 @@
 import { useVerifyEmail } from "@/hooks/useAuth";
 import Link from "next/link";
 import { ROUTE_LOGIN } from "@/lib/constants";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { Loader2, Link2, CheckCircle, XCircle } from "lucide-react";
-import { AxiosError } from "axios";
+import axios from "axios";
 import type { ApiErrorResponse } from "@/types/api";
+import { toast } from "sonner";
 
 function VerifyEmailInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
-  const verifyMutation = useVerifyEmail();
+
+  const { isPending, isError, error, isSuccess } = useVerifyEmail(token);
 
   useEffect(() => {
-    if (token) {
-      verifyMutation.mutate({ token });
+    if (isSuccess) {
+      toast.success("Email verified! You can now sign in.");
+      router.push(ROUTE_LOGIN);
     }
-  }, [token, verifyMutation]);
+  }, [isSuccess, router]);
 
   if (!token) {
     return (
@@ -40,7 +44,7 @@ function VerifyEmailInner() {
     );
   }
 
-  if (verifyMutation.isPending) {
+  if (isPending) {
     return (
       <div className="text-center fade-in">
         <Loader2 className="animate-spin h-8 w-8 mx-auto text-white/40 mb-6" />
@@ -52,7 +56,11 @@ function VerifyEmailInner() {
     );
   }
 
-  if (verifyMutation.isError) {
+  if (isError) {
+    const message = axios.isAxiosError(error)
+      ? (error.response?.data as ApiErrorResponse)?.message
+      : null;
+
     return (
       <div className="text-center fade-in">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-6">
@@ -60,7 +68,7 @@ function VerifyEmailInner() {
         </div>
         <h2 className="text-3xl font-black tracking-tight text-white mb-2">VERIFICATION FAILED.</h2>
         <p className="text-sm text-white/40 mb-8 font-mono-dm uppercase tracking-wider">
-          {(verifyMutation.error instanceof AxiosError ? (verifyMutation.error.response?.data as ApiErrorResponse)?.message : null) || "The link may be invalid or expired."}
+          {message || "The link may be invalid or expired."}
         </p>
         <Link
           href={ROUTE_LOGIN}
