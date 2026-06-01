@@ -1,205 +1,239 @@
-# URL Shortener — Go + Next.js
+# 🔗 URL Shortener with Web3 Rewards (Go + Next.js + Solidity)
 
-A production-grade URL shortener with JWT authentication, real-time analytics, QR codes, and an interactive 3D globe visualization.
+A premium, production-grade URL shortener featuring JWT authentication, real-time analytics, QR codes, an interactive 3D globe visualization, and a fully integrated **Web3 Referral Reward System** built on **Base Sepolia** using secure UUPS Upgradeable Smart Contracts.
 
 ---
 
-## Tech Stack
+## 🏗️ System Architecture
+
+The following diagram illustrates how the frontend, Go backend, and Base Sepolia smart contracts interact to perform gasless off-chain faucet claims and automated reward withdrawals:
+
+```mermaid
+flowchart TD
+    subgraph Client ["Client (Next.js 16 + Wagmi/Viem)"]
+        User["User Interface"]
+        Wallet["MetaMask / Web3 Wallet"]
+    end
+
+    subgraph Server ["Backend (Go Fiber + PostgreSQL + Redis)"]
+        API["REST API Server"]
+        DB[(PostgreSQL)]
+        Cache[(Redis Cache)]
+    end
+
+    subgraph Web3 ["Base Sepolia Smart Contracts"]
+        Token["RewardToken Proxy (SURL)"]
+        Gateway["PaymentGateway Proxy"]
+        Faucet["Faucet Contract"]
+    end
+
+    %% Standard Flow
+    User -->|Shorten / Redirect| API
+    API <--> DB
+    API <--> Cache
+
+    %% Web3 Reward Faucet Flow
+    User -->|Request Claim Signature| API
+    API -->|Validates & Signs Claim| FaucetSigner["Faucet Signer (Private Key)"]
+    FaucetSigner -->|Returns ECDSA Signature| User
+    User -->|Submit Claim + Signature| Faucet
+    Faucet -->|Mints 20 SURL| Wallet
+
+    %% Web3 Withdrawal Flow
+    User -->|Request Withdrawal| API
+    API -->|Submit Withdrawal TX| Operator["Operator Hot Wallet"]
+    Operator -->|Call withdraw()| Gateway
+    Gateway -->|Transfer SURL Reward| Wallet
+```
+
+---
+
+## 🛠️ Technology Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Backend | Go 1.22+, Fiber v2, PostgreSQL, Redis, sqlc |
-| Frontend | Next.js 16, TypeScript, Tailwind CSS 4, TanStack Query, react-globe.gl |
-| Infra | Docker Compose, Nginx, golang-migrate |
+| :--- | :--- |
+| **Backend** | Go 1.22+, Fiber v2, PostgreSQL, Redis, sqlc |
+| **Frontend** | Next.js 16, TypeScript, Vanilla CSS, TanStack Query, react-globe.gl, Wagmi, Viem |
+| **Web3 / Smart Contracts** | Solidity 0.8.35, Hardhat, OpenZeppelin Upgradeable (UUPS), ERC1967 |
+| **Infrastructure** | Docker Compose, Nginx (Reverse Proxy), golang-migrate |
 
-## Features
+---
 
-- **Auth** — Register/login with JWT (access 15 min + refresh 7 d, httpOnly cookie)
-- **Shorten & Redirect** — Base62 slugs, custom aliases, link expiry, Redis caching with singleflight
-- **Analytics** — Country, device, browser, referrer tracking; 3D globe visualization of click distribution
-- **Rate Limiting** — Sliding window per IP via Redis
-- **QR Codes** — Per-link PNG generation with configurable size
-- **Dashboard** — Aggregate stats, per-link charts, globe view, link management
+## ⚡ Key Features
 
-## Quick Start (Development)
+* **Auth & Session** — Register/login with JWT (15-min access token + 7-day secure HttpOnly refresh cookie).
+* **Analytics Engine** — Country, device, browser, and referrer tracking paired with an interactive 3D globe visualization of click distributions.
+* **Rate Limiting** — Sliding window per IP rate limiting powered by Redis.
+* **QR Code Generation** — Clean, on-the-fly QR code generation for shortened links.
+* **Web3 Referral Rewards (`SURL`)** — Complete custom ERC20 reward token with a strictly enforced **20 Billion hard supply cap**.
+* **Gasless Faucet Claims** — Users claim starting rewards by requesting cryptographic signatures from the Go backend and submitting them to the `Faucet` contract (paying zero gas for signatures).
+* **Automated Withdrawals** — The Go backend acts as an oracle, automatically sending reward payouts through a secure `Operator` hot wallet when users cash out their analytics points.
+
+---
+
+## 🚀 Step 1: Web3 Contract Configuration & Deployment
+
+Your smart contracts are upgradeable UUPS proxies. We use a **secure deployment automation pattern** where a temporary deployer key deploys the contracts, mints the initial supplies, and then securely hands over permanent control to a cold Owner wallet.
+
+### 1. Configure the Web3 Environment
+Copy and configure the environment variables in `web3-token/.env`:
 
 ```bash
-git clone https://github.com/YOUR_USER/short-url-generator.git
-cd short-url-generator
-
-# Copy env
-cp backend/.env.example backend/.env
-# Edit backend/.env with your secrets (JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, etc.)
-
-# Start all services
-docker compose -f docker-compose.dev.yml up -d
-
-# Run migrations (first time only)
-docker compose -f docker-compose.dev.yml run --rm migrate
-
-# App is live at http://localhost
+cd web3-token
+cp .env.example .env
 ```
 
-## Production Deployment
+Fill in your configurations:
+```ini
+RPC_URL=https://base-sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID
+DEPLOYER_PRIVATE_KEY=0x... # Hot wallet used to send deployment transactions
+OWNER_ADDRESS=0x...        # Secure Cold Wallet (e.g. Ledger / Gnosis Multi-Sig)
+FAUCET_SIGNER_PUBLIC_ADDRESS=0x... # Address used by backend to sign claim messages
+OPERATOR_SIGNER_PUBLIC_ADDRESS=0x... # Address used by backend to submit withdrawal transactions
+ETHERSCAN_API_KEY=YOUR_BASESCAN_API_KEY
+```
+
+### 2. Deploy to Base Sepolia
+Run the automated deployment script:
 
 ```bash
-# Copy env and set production values
-cp backend/.env.example backend/.env
-# ── Change these for production ──
-# ENV=production
-# JWT_ACCESS_SECRET=<strong-random-secret>
-# JWT_REFRESH_SECRET=<strong-random-secret>
-# DB_PASSWORD=<strong-db-password>
-# REDIS_PASSWORD=<strong-redis-password>
-# ALLOWED_ORIGINS=https://yourdomain.com
+npx hardhat run scripts/deploy.ts --network remote
+```
 
-# Build and start all services
+#### What this script automatically executes:
+1. Deploys the `RewardToken` and `PaymentGateway` proxies with temporary Deployer administrative permissions.
+2. Mints **1,000,000 SURL** directly to the `Faucet` contract.
+3. Mints **1,000,000 SURL** directly to the `Operator` hot wallet.
+4. Mints **19,998,000,000 SURL** (the remaining supply cap) directly to your secure cold **Owner** wallet.
+5. Transfers **100% of permanent administrative ownership** of both contracts to your secure cold **Owner** wallet.
+6. Automatically saves all deployed coordinates into `web3-token/deployed-addresses.txt`.
+
+---
+
+## 🔗 Step 2: Basescan Verification & Proxy Linking
+
+Since the Solidity contract files do not change, Etherscan/Basescan **instantly auto-verifies** your new deployments due to bytecode matching! The only action you need to perform is linking the proxies:
+
+### How to Link UUPS Proxies on Basescan:
+1. **Link the RewardToken Proxy**:
+   * Open your deployed `RewardToken` proxy address on Basescan.
+   * Navigate to the **Contract** tab.
+   * Click **More Options** (the three dots on the right) and select **Is this a proxy?**.
+   * Click **Verify** and then **Save**.
+2. **Link the PaymentGateway Proxy**:
+   * Open your deployed `PaymentGateway` proxy address on Basescan.
+   * Navigate to the **Contract** tab.
+   * Click **More Options** and select **Is this a proxy?**.
+   * Click **Verify** and then **Save**.
+
+Once completed, the **"Write as Proxy"** tab will be fully unlocked, allowing direct interactions!
+
+---
+
+## 🐳 Step 3: Local Production Stack Setup
+
+Once your on-chain contracts are deployed and configured, we spin up the backend, frontend, databases, and reverse proxy locally via Docker.
+
+### 1. Populate the Go Backend Environment
+Copy the environment template in the `backend/` folder and insert your freshly generated smart contract addresses:
+
+```bash
+cd ../backend
+cp .env.example .env
+```
+
+Update your `.env` variables under the Web3 section:
+```ini
+# --- Web3 / Blockchain Configurations (Base Sepolia) ---
+NODE_RPC_URL=https://base-sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID
+CHAIN_RPC_URL=https://base-sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID
+CHAIN_ID=84532
+CHAIN_NAME="Base Sepolia"
+EXPLORER_URL=https://sepolia.basescan.org
+
+CONTRACT_TOKEN=0x...   # RewardToken Proxy Address
+CONTRACT_PAYMENT=0x... # PaymentGateway Proxy Address
+CONTRACT_FAUCET=0x...  # Faucet Contract Address
+OWNER_ADDRESS=0x...    # Owner Wallet Address
+
+# Private Keys
+OPERATOR_PRIVATE_KEY=0x... # Private Key for Operator Hot Wallet (needs Base Sepolia ETH)
+FAUCET_SIGNER_KEY=0x...    # Private Key for Faucet Signer Wallet
+```
+
+> [!IMPORTANT]
+> **Operator Gas Fees**: The Operator Hot Wallet must hold a tiny amount of Base Sepolia ETH (e.g. `0.05` or `0.1` ETH) to pay for withdrawal transaction gas on the blockchain. You can get free testnet ETH from [QuickNode Faucet](https://faucet.quicknode.com/base/sepolia) or [Base Faucet](https://basefaucet.com).
+
+### 2. Launch the Containers
+From the root workspace directory, build and launch the production stack:
+
+```bash
 docker compose -f docker-compose.prod.yml up -d --build
+```
 
-# Run migrations
+### 3. Run Database Migrations
+Create the SQL tables by applying pending migrations inside the PostgreSQL container:
+
+```bash
 docker compose -f docker-compose.prod.yml run --rm migrate
-
-# App is live at http://localhost (port 80)
 ```
 
-To tear down:
+Your app is now live and fully connected at **`http://localhost`**!
+
+---
+
+## 🗃️ Database Migrations Management
+
+Migrations are powered by [golang-migrate](https://github.com/golang-migrate/migrate). All migration scripts live in `backend/db/migrations/`.
 
 ```bash
-# Dev
-docker compose -f docker-compose.dev.yml down
-
-# Prod (preserves data volumes)
-docker compose -f docker-compose.prod.yml down
-
-# Prod (wipe everything including data)
-docker compose -f docker-compose.prod.yml down -v
-```
-
-## Database Migrations
-
-Migrations use [golang-migrate](https://github.com/golang-migrate/migrate). All migration files live in `backend/db/migrations/`.
-
-```bash
-# ── With Docker Compose (recommended) ──
-
-# Apply all pending migrations (up)
+# Apply pending migrations (Dev)
 docker compose -f docker-compose.dev.yml run --rm migrate
 
-# Rollback the last migration (down)
-docker compose -f docker-compose.dev.yml run --rm migrate -- sh -c \
+# Rollback the last applied migration
+docker compose -f docker-compose.prod.yml run --rm migrate -- sh -c \
   'migrate -path=/migrations/ -database "postgres://$${DB_USER}:$${DB_PASSWORD}@db:$${DB_PORT}/$${DB_NAME}?sslmode=disable" down 1'
-
-# Rollback all migrations (full reset)
-docker compose -f docker-compose.dev.yml run --rm migrate -- sh -c \
-  'migrate -path=/migrations/ -database "postgres://$${DB_USER}:$${DB_PASSWORD}@db:$${DB_PORT}/$${DB_NAME}?sslmode=disable" down -all'
-
-
-
 ```
 
-Current migrations:
+---
 
-| # | Name | Description |
-|---|------|-------------|
-| 1 | `create_users` | Users table (id, email, password, created_at) |
-| 2 | `create_urls` | URLs table (slug, original, custom, expires_at, user_id FK) |
-| 3 | `create_clicks` | Clicks table (url_id FK, ip_hash, country, city, device, browser, referrer, clicked_at) |
+## 📡 API Reference
 
-## API Endpoints
-
-### Auth (Public)
-```
-POST /api/auth/register    Register
-POST /api/auth/login       Login → access token + refresh cookie
-POST /api/auth/refresh     Refresh access token
-POST /api/auth/logout      Clear refresh cookie
+### 🔐 Authentication (Public)
+```http
+POST /api/auth/register     - Register a new account
+POST /api/auth/login        - Login (Returns JWT + HttpOnly refresh cookie)
+POST /api/auth/refresh      - Silent JWT access token refresh
+POST /api/auth/logout       - Clear JWT cookies
 ```
 
-### Public
-```
-GET /:slug                  Redirect to original URL
-GET /api/links/:slug/qr     QR code PNG
-```
-
-### Authenticated
-```
-POST   /api/links                Create short URL
-GET    /api/links                List user's links
-GET    /api/links/stats/aggregate  Aggregate stats across all links
-GET    /api/links/:slug          Link detail
-PATCH  /api/links/:slug          Update alias or expiry
-DELETE /api/links/:slug          Delete link
-GET    /api/links/:slug/stats    Per-link click statistics
+### 🔗 Link Management (Authenticated)
+```http
+POST   /api/links           - Shorten a new URL (with custom alias/expiry)
+GET    /api/links           - List all created links for the user
+GET    /api/links/:slug     - Retrieve detail stats for a specific link
+DELETE /api/links/:slug     - Delete a link
+GET    /api/links/:slug/qr  - Generate QR code PNG
 ```
 
-## Project Structure
-
-```
-├── backend/
-│   ├── cmd/server/main.go          # Entry point, wiring
-│   ├── internal/
-│   │   ├── analytics/worker.go     # Async click ingestion worker pool
-│   │   ├── cache/redis.go           # Redis cache layer
-│   │   ├── config/config.go         # Viper config
-│   │   ├── middleware/              # JWT auth, rate limiter, logger
-│   │   ├── modules/
-│   │   │   ├── auth/               # Register, login, refresh, logout
-│   │   │   ├── links/              # CRUD, stats, aggregate stats, QR
-│   │   │   └── redirect/          # Public redirect + analytics enqueue
-│   │   └── repository/             # sqlc-generated typed queries
-│   ├── pkg/                         # slug gen, JWT, response, logger, validator
-│   ├── db/migrations/               # golang-migrate SQL files
-│   └── sqlc.yaml
-├── frontend/
-│   ├── src/
-│   │   ├── app/                    # Next.js App Router pages
-│   │   ├── components/
-│   │   │   ├── links/              # LinkTable, CreateLinkForm, DashboardGlobe, LinkStatCharts
-│   │   │   ├── landing/            # Hero, Features, Navbar, etc.
-│   │   │   └── ui/                 # Loading, GlobeView
-│   │   ├── hooks/                   # useAuth, useLinks, useLinkStats, useAggregateStats
-│   │   ├── lib/                     # api.ts (axios), countries.ts, validators.ts
-│   │   ├── store/                   # Zustand stores
-│   │   └── types/                   # TypeScript interfaces
-│   └── public/                      # Globe textures (earth-dark.jpg, earth-topology.png)
-├── nginx/
-│   ├── dev.conf                     # Dev reverse proxy config
-│   └── prod.conf                    # Prod reverse proxy (with gzip, caching)
-├── docker-compose.dev.yml
-├── docker-compose.prod.yml
-├── .gitignore
-├── .dockerignore
-└── README.md
+### 📈 Web3 Claims & Withdrawals (Authenticated)
+```http
+POST   /api/web3/claim-sig  - Requests faucet claim signature from Backend
+POST   /api/web3/withdraw   - Triggers operator wallet to send SURL to user wallet
 ```
 
-## Running Tests
+---
+
+## 🧪 Running Tests
 
 ```bash
-# Backend
+# Run Go backend unit tests
 cd backend && go test ./...
 
-# Frontend
+# Run Next.js frontend checks
 cd frontend && bun run lint
 ```
 
-## Environment Variables
+## 📄 License
 
-See `backend/.env.example` for the full list. Key variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | API port | `8080` |
-| `ENV` | Environment | `development` |
-| `DB_HOST` | PostgreSQL host | `localhost` |
-| `REDIS_ADDR` | Redis address | `localhost:6379` |
-| `JWT_ACCESS_SECRET` | Access token secret | — |
-| `JWT_REFRESH_SECRET` | Refresh token secret | — |
-| `BASE_URL` | Public URL for short links | `http://localhost:8080` |
-| `RATE_LIMIT_REDIRECT` | Max redirects per minute per IP | `60` |
-| `RATE_LIMIT_CREATE` | Max link creates per minute per IP | `10` |
-| `GEOIP_DB_PATH` | MaxMind GeoLite2 path | `./GeoLite2-City.mmdb` |
-| `ALLOWED_ORIGINS` | CORS origins | `http://localhost:3000` |
-
-## License
-
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
