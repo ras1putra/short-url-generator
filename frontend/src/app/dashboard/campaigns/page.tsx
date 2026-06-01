@@ -26,7 +26,7 @@ export default function CampaignsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const { data: wallet } = useWallet();
   const cfg = useConfigStore((s) => s.config);
-  const symbol = cfg?.token_symbol || "SURL";
+  const symbol = cfg?.token_symbol ?? "";
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState("");

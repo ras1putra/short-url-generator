@@ -29,7 +29,7 @@ func appErrCode(err error) int {
 func TestService_GetWallet_Success(t *testing.T) {
 	_ = zap.ReplaceGlobals(zap.NewNop())
 	_, queries := testutil.SetupTestDB(t)
-	svc := NewWalletService(queries, nil, nil, 0.005)
+	svc := NewWalletService(queries, nil, nil, 0.005, "TST")
 	ctx := context.Background()
 
 	// Create user
@@ -68,7 +68,7 @@ func TestService_GetWallet_Success(t *testing.T) {
 func TestService_GetWallet_NotFound(t *testing.T) {
 	_ = zap.ReplaceGlobals(zap.NewNop())
 	_, queries := testutil.SetupTestDB(t)
-	svc := NewWalletService(queries, nil, nil, 0.005)
+	svc := NewWalletService(queries, nil, nil, 0.005, "TST")
 	ctx := context.Background()
 
 	userID := uuid.New()

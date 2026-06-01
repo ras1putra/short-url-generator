@@ -22,7 +22,7 @@ import { definePaymentChain } from "@/lib/wagmi";
 import { ERC20_ABI } from "@/lib/paymentGateway";
 import { api } from "@/lib/api";
 
-import { ROLE_USER, ROLE_ADVERTISER, ROLE_ADMIN, API_WALLET, DEFAULT_PAGE_SIZE, TX_TYPE_DEPOSIT, TX_TYPE_WITHDRAWAL } from "@/lib/constants";
+import { ROLE_USER, ROLE_ADVERTISER, ROLE_ADMIN, API_WALLET, DEFAULT_PAGE_SIZE, TX_TYPE_DEPOSIT } from "@/lib/constants";
 
 export default function WalletPage() {
   const cfg = useConfigStore((s) => s.config);
@@ -158,16 +158,8 @@ export default function WalletPage() {
       return;
     }
     try {
-      const { hash, requestID } = await withdrawOnChain(withdrawAmount);
-      toast.success(`Withdrawal submitted: ${hash.slice(0, 10)}...`);
-
-      await api.post(`${API_WALLET}/pending`, {
-        amount: num,
-        type: TX_TYPE_WITHDRAWAL,
-        tx_hash: hash,
-        wallet_addr: address,
-        request_id: requestID,
-      });
+      const { hash } = await withdrawOnChain(withdrawAmount, address || "");
+      toast.success(`Withdrawal successful: ${hash.slice(0, 10)}...`);
 
       setWithdrawAmount("");
       setShowWithdraw(false);
@@ -254,7 +246,7 @@ export default function WalletPage() {
             {showDeposit && (
               <div className="mt-4 p-4 rounded-xl border border-white/[0.08] bg-white/[0.03]">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-white/50">Deposit SURL from Wallet</span>
+                  <span className="text-xs text-white/50">Deposit {symbol} from Wallet</span>
                   {isConnected && (
                     <button
                       type="button"
@@ -324,12 +316,12 @@ export default function WalletPage() {
                     disabled={withdrawStatus !== "idle" && withdrawStatus !== "success"}
                     className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
                   >
-                    {withdrawStatus === "signing" || withdrawStatus === "pending" ? (
+                    {withdrawStatus === "pending" ? (
                       <Loader2 className="animate-spin h-4 w-4" />
                     ) : (
                       <ArrowUpFromLine size={16} />
                     )}
-                    {withdrawStatus === "signing" ? "Signing..." : withdrawStatus === "pending" ? "Processing..." : "Withdraw"}
+                    {withdrawStatus === "pending" ? "Processing..." : "Withdraw"}
                   </button>
                 </div>
                 {cfg?.platform_fee !== undefined && (
@@ -378,12 +370,12 @@ export default function WalletPage() {
                   disabled={withdrawStatus !== "idle" && withdrawStatus !== "success"}
                   className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
                 >
-                  {withdrawStatus === "signing" || withdrawStatus === "pending" ? (
+                  {withdrawStatus === "pending" ? (
                     <Loader2 className="animate-spin h-4 w-4" />
                   ) : (
                     <ArrowUpFromLine size={16} />
                   )}
-                  {withdrawStatus === "signing" ? "Signing..." : withdrawStatus === "pending" ? "Processing..." : "Withdraw"}
+                  {withdrawStatus === "pending" ? "Processing..." : "Withdraw"}
                 </button>
               </div>
               {cfg?.platform_fee !== undefined && (

@@ -33,21 +33,16 @@ type WithdrawRequest struct {
 
 type CreatePendingTransactionRequest struct {
 	Amount     decimal.Decimal `json:"amount" validate:"required,decimal_gt=0"`
-	Type       string          `json:"type" validate:"required,oneof=DEPOSIT WITHDRAWAL APPROVE"`
+	Type       string `json:"type" validate:"required,oneof=DEPOSIT"`
 	TxHash     string          `json:"tx_hash" validate:"required,eth_tx_hash"`
 	WalletAddr string          `json:"wallet_addr,omitempty" validate:"omitempty,eth_addr"`
 	RequestID  string          `json:"request_id,omitempty"`
 }
 
-type WithdrawalPermitResponse struct {
-	RequestID string `json:"request_id"`
-	Wallet    string `json:"wallet"`
-	Amount    string `json:"amount"`
-	Nonce     string `json:"nonce"`
-	Deadline  string `json:"deadline"`
-	Signature string `json:"signature"`
-	Contract  string `json:"contract"`
-	ChainID   int64  `json:"chain_id"`
+type WithdrawResponse struct {
+	TxHash string          `json:"tx_hash"`
+	Amount decimal.Decimal `json:"amount"`
+	Wallet string          `json:"wallet"`
 }
 
 type WalletWithTransactionsResponse struct {

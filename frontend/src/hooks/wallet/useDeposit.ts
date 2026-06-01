@@ -41,7 +41,7 @@ export function useDeposit() {
 
       return (Number(balance) / 1e18).toFixed(2);
     } catch (e) {
-      console.error("Failed to fetch SURL balance from wallet", e);
+      console.error("Failed to fetch token balance from wallet", e);
       return "0.00";
     }
   }, [connectWallet, address]);

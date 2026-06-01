@@ -21,7 +21,7 @@ import (
 func setupWalletApp(t *testing.T) (*fiber.App, *repository.Queries) {
 	_ = zap.ReplaceGlobals(zap.NewNop())
 	_, queries := testutil.SetupTestDB(t)
-	svc := NewWalletService(queries, nil, nil, 0.005)
+	svc := NewWalletService(queries, nil, nil, 0.005, "TST")
 	handler := NewWalletHandler(svc)
 
 	app := fiber.New(fiber.Config{ErrorHandler: response.ErrorHandler})

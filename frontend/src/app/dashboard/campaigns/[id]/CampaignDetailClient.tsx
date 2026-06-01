@@ -16,7 +16,7 @@ import { formatBalance } from "@/lib/wallet";
 
 export default function CampaignDetailClient({ id }: { id: string }) {
   const cfg = useConfigStore((s) => s.config);
-  const symbol = cfg?.token_symbol || "SURL";
+  const symbol = cfg?.token_symbol ?? "";
   const { data: categories } = useCategories();
   const { data: adTypes } = useAdTypes();
 

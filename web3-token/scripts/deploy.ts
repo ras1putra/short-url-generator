@@ -62,29 +62,26 @@ async function main() {
   const faucetAddress = await faucet.getAddress();
   console.log("Faucet:                  ", faucetAddress);
 
-  const WithdrawerFactory = await ethers.getContractFactory("Withdrawer");
-  const withdrawer = await WithdrawerFactory.deploy(
-    tokenAddress,
-    faucetSigner,
-    ownerAddress,
-  );
-  await withdrawer.waitForDeployment();
-  const withdrawerAddress = await withdrawer.getAddress();
-  console.log("Withdrawer:              ", withdrawerAddress);
+  let operatorAddress = process.env.OPERATOR_SIGNER_ADDRESS;
+  if (isDevMode) {
+    operatorAddress = faucetSigner;
+  } else if (!operatorAddress) {
+    throw new Error("OPERATOR_SIGNER_ADDRESS environment variable is required for non-development networks");
+  }
 
   if (isDevMode) {
     const ownerSigner = signers[1];
     const tokenContract = await ethers.getContractAt("RewardToken", tokenAddress, ownerSigner);
     const fundAmount = ethers.parseUnits("1000000", 18); // 1M SURL
-    const fundTx = await tokenContract.mint(faucetAddress, fundAmount);
-    await fundTx.wait();
+    const faucetFundTx = await tokenContract.mint(faucetAddress, fundAmount);
+    await faucetFundTx.wait();
     console.log("Faucet funded with 1,000,000 SURL");
-    const withdrawerFundTx = await tokenContract.mint(withdrawerAddress, fundAmount);
-    await withdrawerFundTx.wait();
-    console.log("Withdrawer funded with 1,000,000 SURL");
+    const operatorFundTx = await tokenContract.mint(operatorAddress, fundAmount);
+    await operatorFundTx.wait();
+    console.log("Operator hot wallet funded with 1,000,000 SURL");
   } else {
     console.log(`Please fund the faucet manually. Faucet address: ${faucetAddress}`);
-    console.log(`Please fund the withdrawer manually. Withdrawer address: ${withdrawerAddress}`);
+    console.log(`Please fund the operator hot wallet manually (ETH + SURL). Operator address: ${operatorAddress}`);
   }
 
   const outputFile = process.env.OUTPUT_FILE;
@@ -93,7 +90,6 @@ async function main() {
       `CONTRACT_TOKEN=${tokenAddress}`,
       `CONTRACT_PAYMENT=${gatewayAddress}`,
       `CONTRACT_FAUCET=${faucetAddress}`,
-      `CONTRACT_WITHDRAWER=${withdrawerAddress}`,
       `CONTRACT_TOKEN_IMPL=${tokenImpl}`,
       `CONTRACT_PAYMENT_IMPL=${gatewayImpl}`,
       `OWNER_ADDRESS=${ownerAddress}`,
@@ -101,6 +97,7 @@ async function main() {
       `TOKEN_SYMBOL=${tokenSymbol}`,
       `TOKEN_DECIMALS=${tokenDecimals}`,
       `FAUCET_SIGNER_ADDRESS=${faucetSigner}`,
+      `OPERATOR_SIGNER_ADDRESS=${operatorAddress}`,
       "",
     ].join("\n");
     fs.writeFileSync(outputFile, envContent);
@@ -114,9 +111,9 @@ async function main() {
   console.log("PaymentGateway proxy:     ", gatewayAddress);
   console.log("PaymentGateway impl:      ", gatewayImpl);
   console.log("Faucet:                   ", faucetAddress);
-  console.log("Withdrawer:               ", withdrawerAddress);
   console.log("Owner:                    ", ownerAddress);
   console.log("Faucet Signer:            ", faucetSigner);
+  console.log("Operator:                 ", operatorAddress);
 }
 
 main().catch((error) => {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/sqlc-dev/pqtype"
@@ -25,12 +26,13 @@ import (
 type WalletService struct {
 	repo        repository.Querier
 	db          *sql.DB
-	withdrawer  *web3client.WithdrawerService
+	operator    *web3client.OperatorService
 	platformFee float64
+	tokenSymbol string
 }
 
-func NewWalletService(repo repository.Querier, db *sql.DB, withdrawer *web3client.WithdrawerService, platformFee float64) *WalletService {
-	return &WalletService{repo: repo, db: db, withdrawer: withdrawer, platformFee: platformFee}
+func NewWalletService(repo repository.Querier, db *sql.DB, operator *web3client.OperatorService, platformFee float64, tokenSymbol string) *WalletService {
+	return &WalletService{repo: repo, db: db, operator: operator, platformFee: platformFee, tokenSymbol: tokenSymbol}
 }
 
 func (s *WalletService) GetWallet(ctx context.Context, userID uuid.UUID, page, perPage int, q, sortBy, sortDir string) (*dto.WalletWithTransactionsResponse, error) {
@@ -111,8 +113,45 @@ func (s *WalletService) GetWallet(ctx context.Context, userID uuid.UUID, page, p
 	}, nil
 }
 
-func (s *WalletService) RequestWithdraw(ctx context.Context, userID uuid.UUID, req dto.WithdrawRequest) (*dto.WithdrawalPermitResponse, error) {
-	wallet, err := s.repo.GetWalletByUserID(ctx, userID)
+func (s *WalletService) RequestWithdraw(ctx context.Context, userID uuid.UUID, req dto.WithdrawRequest) (*dto.WithdrawResponse, error) {
+	fee := decimal.NewFromFloat(s.platformFee)
+	totalDeduction := req.Amount.Add(fee)
+
+	amountBig := req.Amount.Mul(decimal.NewFromInt(10).Pow(decimal.NewFromInt(18)))
+	amountWei := new(big.Int)
+	amountWei, ok := amountWei.SetString(amountBig.String(), 10)
+	if !ok {
+		return nil, response.NewAppError(500, "Failed to parse amount")
+	}
+
+	tokenBalance, err := s.operator.TokenBalance(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Error("Failed to check operator token balance", zap.Error(err))
+		return nil, response.NewAppError(503, "Withdrawal temporarily unavailable: cannot verify pool balance")
+	}
+	if tokenBalance.Cmp(amountWei) < 0 {
+		return nil, response.NewAppError(503, "Withdrawal temporarily unavailable: platform pool insufficient. Please contact support.")
+	}
+
+	ethBalance, err := s.operator.EthBalance(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Error("Failed to check operator ETH balance", zap.Error(err))
+		return nil, response.NewAppError(503, "Withdrawal temporarily unavailable: cannot verify gas balance")
+	}
+	minEth := new(big.Int).Mul(big.NewInt(10), new(big.Int).Exp(big.NewInt(10), big.NewInt(15), nil))
+	if ethBalance.Cmp(minEth) < 0 {
+		return nil, response.NewAppError(503, "Withdrawal temporarily unavailable: platform gas wallet depleted. Please contact support.")
+	}
+
+	dbTx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, response.NewAppError(500, "Failed to start withdrawal transaction")
+	}
+	defer func() { _ = dbTx.Rollback() }()
+
+	q := s.repo.(*repository.Queries).WithTx(dbTx)
+
+	wallet, err := q.GetWalletByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, response.NewAppError(404, "Wallet not found")
@@ -122,46 +161,9 @@ func (s *WalletService) RequestWithdraw(ctx context.Context, userID uuid.UUID, r
 	}
 
 	balanceDec := helper.ParseDecimal(wallet.Balance)
-	available := balanceDec
-
-	fee := decimal.NewFromFloat(s.platformFee)
-	totalDeduction := req.Amount.Add(fee)
-
-	if available.LessThan(totalDeduction) {
-		return nil, response.NewAppError(400, fmt.Sprintf("Insufficient available balance: requested %s SURL, platform fee %s SURL, total required %s SURL, but you only have %s SURL available", req.Amount.StringFixed(4), fee.StringFixed(4), totalDeduction.StringFixed(4), available.StringFixed(4)))
+	if balanceDec.LessThan(totalDeduction) {
+		return nil, response.NewAppError(400, fmt.Sprintf("Insufficient available balance: requested %s %s, platform fee %s %s, total required %s %s, but you only have %s %s available", req.Amount.StringFixed(4), s.tokenSymbol, fee.StringFixed(4), s.tokenSymbol, totalDeduction.StringFixed(4), s.tokenSymbol, balanceDec.StringFixed(4), s.tokenSymbol))
 	}
-
-	amountBig := req.Amount.Mul(decimal.NewFromInt(10).Pow(decimal.NewFromInt(18)))
-	amountWei := new(big.Int)
-	amountWei, ok := amountWei.SetString(amountBig.String(), 10)
-	if !ok {
-		return nil, response.NewAppError(500, "Failed to parse amount")
-	}
-
-	permit, err := s.withdrawer.CreatePermit(ctx, req.WalletAddr, amountWei)
-	if err != nil {
-		logger.Ctx(ctx).Error("Failed to create withdrawal permit", zap.Error(err))
-		return nil, response.NewAppError(500, "Failed to create withdrawal permit")
-	}
-
-	requestID := uuid.NewString()
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, response.NewAppError(500, "Failed to start withdrawal reservation")
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	q := s.repo.(*repository.Queries).WithTx(tx)
-
-	metaBytes, _ := json.Marshal(map[string]interface{}{
-		"request_id":  requestID,
-		"wallet_addr": req.WalletAddr,
-		"nonce":       permit.Nonce,
-		"deadline":    permit.Deadline,
-		"amount":      req.Amount.String(),
-		"fee":         fee.String(),
-	})
 
 	negTotalDeduction := totalDeduction.Neg()
 	if _, err = q.UpdateWalletBalance(ctx, repository.UpdateWalletBalanceParams{
@@ -172,24 +174,37 @@ func (s *WalletService) RequestWithdraw(ctx context.Context, userID uuid.UUID, r
 		return nil, response.NewAppError(500, "Failed to reserve withdrawal balance")
 	}
 
+	to := common.HexToAddress(req.WalletAddr)
+	txHash, err := s.operator.SendERC20(ctx, to, amountWei)
+	if err != nil {
+		logger.Ctx(ctx).Error("On-chain transfer failed", zap.String("wallet", req.WalletAddr), zap.String("amount", req.Amount.String()), zap.String("tx_hash", txHash), zap.Error(err))
+		return nil, response.NewAppError(502, "Withdrawal failed due to a network error. Your balance has been restored. Please contact support.")
+	}
+
+	metaBytes, _ := json.Marshal(map[string]interface{}{
+		"wallet_addr": req.WalletAddr,
+		"amount":      req.Amount.String(),
+		"fee":         fee.String(),
+	})
+
 	negAmount := req.Amount.Neg()
-	if _, err = q.CreatePendingTransaction(ctx, repository.CreatePendingTransactionParams{
+	if _, err = q.CreateTransaction(ctx, repository.CreateTransactionParams{
 		UserID: userID,
 		Amount: helper.FormatDecimal(negAmount),
 		Type:   constants.TxTypeWithdrawal,
-		TxHash: sql.NullString{},
+		TxHash: sql.NullString{String: txHash, Valid: true},
 		Metadata: pqtype.NullRawMessage{
 			RawMessage: metaBytes,
 			Valid:      true,
 		},
 	}); err != nil {
-		logger.Ctx(ctx).Error("Database error creating pending withdrawal transaction", zap.Error(err))
-		return nil, response.NewAppError(500, "Failed to create pending withdrawal")
+		logger.Ctx(ctx).Error("Database error creating withdrawal transaction", zap.Error(err))
+		return nil, response.NewAppError(500, "Failed to create withdrawal record")
 	}
 
 	if fee.IsPositive() {
 		negFee := fee.Neg()
-		if _, err = q.CreatePendingTransaction(ctx, repository.CreatePendingTransactionParams{
+		if _, err = q.CreateTransaction(ctx, repository.CreateTransactionParams{
 			UserID: userID,
 			Amount: helper.FormatDecimal(negFee),
 			Type:   constants.TxTypeWithdrawalFee,
@@ -199,120 +214,26 @@ func (s *WalletService) RequestWithdraw(ctx context.Context, userID uuid.UUID, r
 				Valid:      true,
 			},
 		}); err != nil {
-			logger.Ctx(ctx).Error("Database error creating pending withdrawal fee transaction", zap.Error(err))
-			return nil, response.NewAppError(500, "Failed to create pending withdrawal fee")
+			logger.Ctx(ctx).Error("Database error creating withdrawal fee transaction", zap.Error(err))
+			return nil, response.NewAppError(500, "Failed to create withdrawal fee record")
 		}
 	}
 
-	if err = tx.Commit(); err != nil {
-		return nil, response.NewAppError(500, "Failed to finalize withdrawal reservation")
+	if err = dbTx.Commit(); err != nil {
+		logger.Ctx(ctx).Error("Database error committing withdrawal transaction", zap.Error(err))
+		return nil, response.NewAppError(500, "Failed to finalize withdrawal")
 	}
 
-	return &dto.WithdrawalPermitResponse{
-		RequestID: requestID,
-		Wallet:    permit.Wallet,
-		Amount:    permit.Amount,
-		Nonce:     permit.Nonce,
-		Deadline:  permit.Deadline,
-		Signature: permit.Signature,
-		Contract:  permit.Contract,
-		ChainID:   permit.ChainID,
+	GlobalHub.BroadcastToUser(userID, constants.WSEventWalletUpdate, nil)
+
+	return &dto.WithdrawResponse{
+		TxHash: txHash,
+		Amount: req.Amount,
+		Wallet: req.WalletAddr,
 	}, nil
 }
 
 func (s *WalletService) CreatePendingTransaction(ctx context.Context, userID uuid.UUID, req dto.CreatePendingTransactionRequest) (*dto.TransactionResponse, error) {
-	if req.Type == constants.TxTypeWithdrawal {
-		if req.WalletAddr == "" {
-			return nil, response.NewAppError(400, "Wallet address is required for withdrawal confirmation")
-		}
-		if req.RequestID == "" {
-			return nil, response.NewAppError(400, "Request ID is required for withdrawal confirmation")
-		}
-
-		amountBig := req.Amount.Mul(decimal.NewFromInt(10).Pow(decimal.NewFromInt(18)))
-		amountWei := new(big.Int)
-		amountWei, ok := amountWei.SetString(amountBig.StringFixed(0), 10)
-		if !ok {
-			return nil, response.NewAppError(500, "Failed to parse withdrawal amount to wei")
-		}
-
-		err := s.withdrawer.VerifyWithdrawal(ctx, req.TxHash, req.WalletAddr, amountWei)
-		if err != nil {
-			logger.Ctx(ctx).Error("Failed to verify on-chain withdrawal", zap.String("tx_hash", req.TxHash), zap.Error(err))
-			return nil, response.NewAppError(400, fmt.Sprintf("On-chain withdrawal verification failed: %s", err.Error()))
-		}
-
-		tx, err := s.db.BeginTx(ctx, nil)
-		if err != nil {
-			logger.Ctx(ctx).Error("Database error starting transaction for withdrawal confirmation", zap.Error(err))
-			return nil, response.NewAppError(500, "Internal server error")
-		}
-		defer func() { _ = tx.Rollback() }()
-
-		q := s.repo
-		if queriesInstance, ok := s.repo.(*repository.Queries); ok {
-			q = queriesInstance.WithTx(tx)
-		} else {
-			return nil, response.NewAppError(500, "Internal server error")
-		}
-
-		pendingWithdrawal, err := q.GetPendingWithdrawalByRequestID(ctx, repository.GetPendingWithdrawalByRequestIDParams{
-			UserID:  userID,
-			Column2: req.RequestID,
-		})
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil, response.NewAppError(404, "Pending withdrawal request not found or already finalized")
-			}
-			logger.Ctx(ctx).Error("Database error finding pending withdrawal by request ID", zap.Error(err))
-			return nil, response.NewAppError(500, "Internal server error")
-		}
-
-		pendingAmount := helper.ParseDecimal(pendingWithdrawal.Amount).Abs()
-		if !pendingAmount.Equal(req.Amount) {
-			return nil, response.NewAppError(400, "Withdrawal amount does not match pending request")
-		}
-
-		dbTx, err := q.UpdateTransactionHashAndStatusByID(ctx, repository.UpdateTransactionHashAndStatusByIDParams{
-			ID:     pendingWithdrawal.ID,
-			TxHash: sql.NullString{String: req.TxHash, Valid: true},
-			Status: constants.TxStatusConfirmed,
-		})
-		if err != nil {
-			logger.Ctx(ctx).Error("Database error finalising withdrawal transaction", zap.Error(err))
-			return nil, response.NewAppError(500, "Internal server error")
-		}
-
-		feeRows, err := q.ListPendingWithdrawalFeesByRequestID(ctx, repository.ListPendingWithdrawalFeesByRequestIDParams{
-			UserID:  userID,
-			Column2: req.RequestID,
-		})
-		if err != nil {
-			logger.Ctx(ctx).Error("Database error listing pending withdrawal fee rows", zap.Error(err))
-			return nil, response.NewAppError(500, "Internal server error")
-		}
-		for _, feeRow := range feeRows {
-			_, err = q.UpdateTransactionHashAndStatusByID(ctx, repository.UpdateTransactionHashAndStatusByIDParams{
-				ID:     feeRow.ID,
-				TxHash: sql.NullString{String: req.TxHash, Valid: true},
-				Status: constants.TxStatusConfirmed,
-			})
-			if err != nil {
-				logger.Ctx(ctx).Error("Database error finalising withdrawal fee transaction", zap.Error(err))
-				return nil, response.NewAppError(500, "Internal server error")
-			}
-		}
-
-		if err := tx.Commit(); err != nil {
-			logger.Ctx(ctx).Error("Database error committing withdrawal confirmation transaction", zap.Error(err))
-			return nil, response.NewAppError(500, "Internal server error")
-		}
-
-		resp := dto.MapTransactionToResponse(dbTx)
-		GlobalHub.BroadcastToUser(userID, constants.WSEventWalletUpdate, nil)
-		return &resp, nil
-	}
-
 	amount := req.Amount
 	amountStr := helper.FormatDecimal(amount)
 	metaBytes, _ := json.Marshal(map[string]interface{}{

@@ -28,31 +28,6 @@ export const PAYMENT_GATEWAY_ABI = [
   },
 ];
 
-export const WITHDRAWER_ABI = [
-  {
-    inputs: [
-      { internalType: "uint256", name: "amount", type: "uint256" },
-      { internalType: "uint256", name: "nonce", type: "uint256" },
-      { internalType: "uint256", name: "deadline", type: "uint256" },
-      { internalType: "bytes", name: "signature", type: "bytes" },
-    ],
-    name: "withdraw",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "wallet", type: "address" },
-      { indexed: false, internalType: "uint256", name: "amount", type: "uint256" },
-      { indexed: false, internalType: "uint256", name: "nonce", type: "uint256" },
-    ],
-    name: "WithdrawalClaimed",
-    type: "event",
-  },
-] as const;
-
 export const ERC20_ABI = [
   {
     inputs: [

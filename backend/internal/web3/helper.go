@@ -14,9 +14,8 @@ import (
 )
 
 var (
-	eip712DomainTypeHash  = crypto.Keccak256Hash([]byte("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"))
-	faucetClaimTypeHash   = crypto.Keccak256Hash([]byte("FaucetClaim(address wallet,uint256 amount,uint256 nonce,uint256 deadline)"))
-	withdrawalTypeHash    = crypto.Keccak256Hash([]byte("Withdrawal(address wallet,uint256 amount,uint256 nonce,uint256 deadline)"))
+	eip712DomainTypeHash = crypto.Keccak256Hash([]byte("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"))
+	faucetClaimTypeHash  = crypto.Keccak256Hash([]byte("FaucetClaim(address wallet,uint256 amount,uint256 nonce,uint256 deadline)"))
 )
 
 func computeDomainSeparator(d EIP712Domain) [32]byte {
@@ -33,16 +32,6 @@ func computeDomainSeparator(d EIP712Domain) [32]byte {
 func encodeFaucetClaim(wallet common.Address, amount, nonce, deadline *big.Int) []byte {
 	buf := new(bytes.Buffer)
 	buf.Write(faucetClaimTypeHash.Bytes())
-	buf.Write(common.LeftPadBytes(wallet.Bytes(), 32))
-	buf.Write(common.LeftPadBytes(amount.Bytes(), 32))
-	buf.Write(common.LeftPadBytes(nonce.Bytes(), 32))
-	buf.Write(common.LeftPadBytes(deadline.Bytes(), 32))
-	return buf.Bytes()
-}
-
-func encodeWithdrawal(wallet common.Address, amount, nonce, deadline *big.Int) []byte {
-	buf := new(bytes.Buffer)
-	buf.Write(withdrawalTypeHash.Bytes())
 	buf.Write(common.LeftPadBytes(wallet.Bytes(), 32))
 	buf.Write(common.LeftPadBytes(amount.Bytes(), 32))
 	buf.Write(common.LeftPadBytes(nonce.Bytes(), 32))

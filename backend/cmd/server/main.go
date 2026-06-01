@@ -93,13 +93,12 @@ func main() {
 	redirectSvc := redirect.NewRedirectService(urlService, queries, analyticsWorker, geoDB, cfg, db, redisClient.Raw())
 	redirectHandler := redirect.NewRedirectHandler(redirectSvc)
 
-	withdrawerAddr := common.HexToAddress(cfg.ContractWithdrawer)
-	withdrawerSvc, err := web3client.NewWithdrawerService(cfg.FaucetSignerKey, big.NewInt(int64(cfg.ChainID)), withdrawerAddr, cfg.NodeRPCURL)
+	operatorSvc, err := web3client.NewOperatorService(cfg.OperatorPrivateKey, cfg.ContractToken, cfg.NodeRPCURL, big.NewInt(int64(cfg.ChainID)))
 	if err != nil {
-		zap.L().Fatal("Failed to initialize withdrawer service", zap.Error(err))
+		zap.L().Fatal("Failed to initialize operator service", zap.Error(err))
 	}
 
-	walletSvc := walletmodule.NewWalletService(queries, db, withdrawerSvc, cfg.PlatformFee)
+	walletSvc := walletmodule.NewWalletService(queries, db, operatorSvc, cfg.PlatformFee, cfg.TokenSymbol)
 	walletHandler := walletmodule.NewWalletHandler(walletSvc)
 
 	adSvc := ads.NewAdService(db, queries)
@@ -240,7 +239,7 @@ func main() {
 	depositListener.Stop()
 	faucetSvc.Stop()
 	faucetSvc.Close()
-	withdrawerSvc.Close()
+	operatorSvc.Close()
 	stop()
 
 	if err := app.Shutdown(); err != nil {

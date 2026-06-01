@@ -23,35 +23,6 @@ SET status = $2
 WHERE tx_hash = $1
 RETURNING *;
 
--- name: UpdateTransactionHashAndStatusByID :one
-UPDATE transactions
-SET tx_hash = $2, status = $3
-WHERE id = $1
-RETURNING *;
-
--- name: GetPendingWithdrawalByRequestID :one
-SELECT * FROM transactions
-WHERE user_id = $1
-  AND type = 'WITHDRAWAL'
-  AND status = 'PENDING'::transaction_status
-  AND tx_hash IS NULL
-  AND metadata->>'request_id' = $2::text
-LIMIT 1;
-
--- name: ListPendingWithdrawalFeesByRequestID :many
-SELECT * FROM transactions
-WHERE user_id = $1
-  AND type = 'WITHDRAWAL_FEE'
-  AND status = 'PENDING'::transaction_status
-  AND tx_hash IS NULL
-  AND metadata->>'request_id' = $2::text;
-
--- name: FailStalePendingTransactions :exec
-UPDATE transactions
-SET status = 'FAILED'::transaction_status
-WHERE status = 'PENDING'::transaction_status
-  AND created_at < NOW() - INTERVAL '15 minutes';
-
 -- name: ListTransactionsByUser :many
 SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3;
 

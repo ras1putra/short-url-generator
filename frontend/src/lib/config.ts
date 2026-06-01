@@ -14,7 +14,6 @@ export interface AppConfig {
   contract_payment: string;
   contract_token?: string;
   contract_faucet?: string;
-  contract_withdrawer?: string;
   token_symbol: string;
   token_decimals: number;
   platform_fee?: number;

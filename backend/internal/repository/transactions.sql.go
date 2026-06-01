@@ -120,49 +120,6 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 	return i, err
 }
 
-const failStalePendingTransactions = `-- name: FailStalePendingTransactions :exec
-UPDATE transactions
-SET status = 'FAILED'::transaction_status
-WHERE status = 'PENDING'::transaction_status
-  AND created_at < NOW() - INTERVAL '15 minutes'
-`
-
-func (q *Queries) FailStalePendingTransactions(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, failStalePendingTransactions)
-	return err
-}
-
-const getPendingWithdrawalByRequestID = `-- name: GetPendingWithdrawalByRequestID :one
-SELECT id, user_id, amount, type, status, tx_hash, metadata, created_at FROM transactions
-WHERE user_id = $1
-  AND type = 'WITHDRAWAL'
-  AND status = 'PENDING'::transaction_status
-  AND tx_hash IS NULL
-  AND metadata->>'request_id' = $2::text
-LIMIT 1
-`
-
-type GetPendingWithdrawalByRequestIDParams struct {
-	UserID  uuid.UUID `json:"user_id"`
-	Column2 string    `json:"column_2"`
-}
-
-func (q *Queries) GetPendingWithdrawalByRequestID(ctx context.Context, arg GetPendingWithdrawalByRequestIDParams) (Transaction, error) {
-	row := q.db.QueryRowContext(ctx, getPendingWithdrawalByRequestID, arg.UserID, arg.Column2)
-	var i Transaction
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Amount,
-		&i.Type,
-		&i.Status,
-		&i.TxHash,
-		&i.Metadata,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const getTransactionByHash = `-- name: GetTransactionByHash :one
 SELECT id, user_id, amount, type, status, tx_hash, metadata, created_at FROM transactions WHERE tx_hash = $1
 `
@@ -181,52 +138,6 @@ func (q *Queries) GetTransactionByHash(ctx context.Context, txHash sql.NullStrin
 		&i.CreatedAt,
 	)
 	return i, err
-}
-
-const listPendingWithdrawalFeesByRequestID = `-- name: ListPendingWithdrawalFeesByRequestID :many
-SELECT id, user_id, amount, type, status, tx_hash, metadata, created_at FROM transactions
-WHERE user_id = $1
-  AND type = 'WITHDRAWAL_FEE'
-  AND status = 'PENDING'::transaction_status
-  AND tx_hash IS NULL
-  AND metadata->>'request_id' = $2::text
-`
-
-type ListPendingWithdrawalFeesByRequestIDParams struct {
-	UserID  uuid.UUID `json:"user_id"`
-	Column2 string    `json:"column_2"`
-}
-
-func (q *Queries) ListPendingWithdrawalFeesByRequestID(ctx context.Context, arg ListPendingWithdrawalFeesByRequestIDParams) ([]Transaction, error) {
-	rows, err := q.db.QueryContext(ctx, listPendingWithdrawalFeesByRequestID, arg.UserID, arg.Column2)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Transaction
-	for rows.Next() {
-		var i Transaction
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.Amount,
-			&i.Type,
-			&i.Status,
-			&i.TxHash,
-			&i.Metadata,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listTransactionsByUser = `-- name: ListTransactionsByUser :many
@@ -334,35 +245,6 @@ func (q *Queries) ListTransactionsByUserFiltered(ctx context.Context, arg ListTr
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateTransactionHashAndStatusByID = `-- name: UpdateTransactionHashAndStatusByID :one
-UPDATE transactions
-SET tx_hash = $2, status = $3
-WHERE id = $1
-RETURNING id, user_id, amount, type, status, tx_hash, metadata, created_at
-`
-
-type UpdateTransactionHashAndStatusByIDParams struct {
-	ID     uuid.UUID      `json:"id"`
-	TxHash sql.NullString `json:"tx_hash"`
-	Status string         `json:"status"`
-}
-
-func (q *Queries) UpdateTransactionHashAndStatusByID(ctx context.Context, arg UpdateTransactionHashAndStatusByIDParams) (Transaction, error) {
-	row := q.db.QueryRowContext(ctx, updateTransactionHashAndStatusByID, arg.ID, arg.TxHash, arg.Status)
-	var i Transaction
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Amount,
-		&i.Type,
-		&i.Status,
-		&i.TxHash,
-		&i.Metadata,
-		&i.CreatedAt,
-	)
-	return i, err
 }
 
 const updateTransactionStatus = `-- name: UpdateTransactionStatus :one

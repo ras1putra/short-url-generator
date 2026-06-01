@@ -9,12 +9,11 @@ import (
 
 func TestConfigResponse_JSON(t *testing.T) {
 	resp := ConfigResponse{
-		ContractPayment:    "0xpayment",
-		ContractToken:      "0xtoken",
-		ContractFaucet:     "0xfaucet",
-		ContractWithdrawer: "0xwithdrawer",
-		TokenSymbol:        "SURL",
-		TokenDecimals:      18,
+		ContractPayment: "0xpayment",
+		ContractToken:   "0xtoken",
+		ContractFaucet:  "0xfaucet",
+		TokenSymbol:     "SURL",
+		TokenDecimals:   18,
 		PlatformFee:        0.005,
 		PaymentChain: PaymentChainResponse{
 			ChainID:     31337,

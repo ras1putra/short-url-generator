@@ -20,7 +20,7 @@ import (
 
 type WalletServicer interface {
 	GetWallet(ctx context.Context, userID uuid.UUID, page, perPage int, q, sortBy, sortDir string) (*dto.WalletWithTransactionsResponse, error)
-	RequestWithdraw(ctx context.Context, userID uuid.UUID, req dto.WithdrawRequest) (*dto.WithdrawalPermitResponse, error)
+	RequestWithdraw(ctx context.Context, userID uuid.UUID, req dto.WithdrawRequest) (*dto.WithdrawResponse, error)
 	CreatePendingTransaction(ctx context.Context, userID uuid.UUID, req dto.CreatePendingTransactionRequest) (*dto.TransactionResponse, error)
 }
 
@@ -52,12 +52,12 @@ func (h *WalletHandler) RequestWithdraw(c *fiber.Ctx) error {
 		return response.HandleError(c, err, "RequestWithdraw")
 	}
 
-	logger.Ctx(c.UserContext()).Info("Withdrawal requested successfully",
+	logger.Ctx(c.UserContext()).Info("Withdrawal processed successfully",
 		zap.String("amount", req.Amount.String()),
 		zap.String("wallet_addr", req.WalletAddr),
 	)
 
-	return response.OK(c, permit, "Withdrawal permit created - submit on-chain to claim")
+	return response.OK(c, permit, "Withdrawal successful")
 }
 
 func (h *WalletHandler) GetWallet(c *fiber.Ctx) error {

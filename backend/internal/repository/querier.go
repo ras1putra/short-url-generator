@@ -36,7 +36,6 @@ type Querier interface {
 	DeleteExpiredURLs(ctx context.Context) error
 	DeleteOAuthAccount(ctx context.Context, id uuid.UUID) error
 	DeleteURL(ctx context.Context, arg DeleteURLParams) error
-	FailStalePendingTransactions(ctx context.Context) error
 	GetActiveAds(ctx context.Context) ([]Ad, error)
 	GetActiveAdsByCategory(ctx context.Context, dollar_1 []string) ([]Ad, error)
 	GetAdByID(ctx context.Context, id uuid.UUID) (Ad, error)
@@ -49,7 +48,6 @@ type Querier interface {
 	GetLinkAdEvents(ctx context.Context, arg GetLinkAdEventsParams) ([]GetLinkAdEventsRow, error)
 	GetLinkAdEventsFiltered(ctx context.Context, arg GetLinkAdEventsFilteredParams) ([]GetLinkAdEventsFilteredRow, error)
 	GetOAuthAccountByProvider(ctx context.Context, arg GetOAuthAccountByProviderParams) (OauthAccount, error)
-	GetPendingWithdrawalByRequestID(ctx context.Context, arg GetPendingWithdrawalByRequestIDParams) (Transaction, error)
 	GetReferencedMediaURLs(ctx context.Context) ([]string, error)
 	GetStatsBySlug(ctx context.Context, slug string) ([]GetStatsBySlugRow, error)
 	GetTotalClicksBySlug(ctx context.Context, slug string) (int64, error)
@@ -68,7 +66,6 @@ type Querier interface {
 	ListAdsByAdvertiser(ctx context.Context, advertiserID uuid.UUID) ([]Ad, error)
 	ListAdsByAdvertiserFiltered(ctx context.Context, arg ListAdsByAdvertiserFilteredParams) ([]Ad, error)
 	ListOAuthAccountsByUserID(ctx context.Context, userID uuid.UUID) ([]OauthAccount, error)
-	ListPendingWithdrawalFeesByRequestID(ctx context.Context, arg ListPendingWithdrawalFeesByRequestIDParams) ([]Transaction, error)
 	ListTransactionsByUser(ctx context.Context, arg ListTransactionsByUserParams) ([]Transaction, error)
 	ListTransactionsByUserFiltered(ctx context.Context, arg ListTransactionsByUserFilteredParams) ([]Transaction, error)
 	ListURLsByUser(ctx context.Context, userID uuid.UUID) ([]Url, error)
@@ -77,7 +74,6 @@ type Querier interface {
 	SaveClick(ctx context.Context, arg SaveClickParams) (Click, error)
 	UpdateAd(ctx context.Context, arg UpdateAdParams) (Ad, error)
 	UpdateAdStatus(ctx context.Context, arg UpdateAdStatusParams) error
-	UpdateTransactionHashAndStatusByID(ctx context.Context, arg UpdateTransactionHashAndStatusByIDParams) (Transaction, error)
 	UpdateTransactionStatus(ctx context.Context, arg UpdateTransactionStatusParams) (Transaction, error)
 	UpdateURL(ctx context.Context, arg UpdateURLParams) (Url, error)
 	UpdateUserEmailVerificationToken(ctx context.Context, arg UpdateUserEmailVerificationTokenParams) (User, error)

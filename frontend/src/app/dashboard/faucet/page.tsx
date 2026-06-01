@@ -52,7 +52,7 @@ export default function FaucetPage() {
     return historySortDir === "asc" ? <ArrowUp className="h-3 w-3 inline ml-1 text-[#6EE7B7]" /> : <ArrowDown className="h-3 w-3 inline ml-1 text-[#6EE7B7]" />;
   };
 
-  const symbol = cfg?.token_symbol || "TK";
+  const symbol = cfg?.token_symbol ?? "";
   const explorerUrl = cfg?.payment_chain?.explorer_url;
 
   const isPending = claimMutation.isPending || isWritePending || isConfirming || confirmMutation.isPending;
@@ -310,7 +310,7 @@ export default function FaucetPage() {
                     {history.map((item: FaucetHistoryItem) => (
                       <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-green-400 font-mono-dm">{Number(item.amount) / 1e18} SURL</span>
+                          <span className="text-green-400 font-mono-dm">{Number(item.amount) / 1e18} {symbol}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {explorerUrl ? (
@@ -388,7 +388,7 @@ export default function FaucetPage() {
               <p className="text-white/40 text-sm max-w-md mx-auto">
                 {historySearch
                   ? "Try adjusting your search to find what you're looking for."
-                  : "Claim your first SURL tokens using the faucet above."}
+                  : `Claim your first ${symbol} tokens using the faucet above.`}
               </p>
             </div>
           )}

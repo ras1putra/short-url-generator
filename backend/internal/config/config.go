@@ -34,13 +34,13 @@ type Config struct {
 	AllowedOrigins     string  `mapstructure:"ALLOWED_ORIGINS"`
 	NodeRPCURL         string  `mapstructure:"NODE_RPC_URL"`
 	ChainRPCURL        string  `mapstructure:"CHAIN_RPC_URL"`
-	ContractPayment    string  `mapstructure:"CONTRACT_PAYMENT"`
-	ContractToken      string  `mapstructure:"CONTRACT_TOKEN"`
-	TokenSymbol        string  `mapstructure:"TOKEN_SYMBOL"`
-	TokenDecimals      int     `mapstructure:"TOKEN_DECIMALS"`
-	OwnerAddress       string  `mapstructure:"OWNER_ADDRESS"`
-	ContractFaucet     string  `mapstructure:"CONTRACT_FAUCET"`
-	ContractWithdrawer string  `mapstructure:"CONTRACT_WITHDRAWER"`
+	ContractPayment  string `mapstructure:"CONTRACT_PAYMENT"`
+	ContractToken    string `mapstructure:"CONTRACT_TOKEN"`
+	TokenSymbol      string `mapstructure:"TOKEN_SYMBOL"`
+	TokenDecimals    int    `mapstructure:"TOKEN_DECIMALS"`
+	OwnerAddress     string `mapstructure:"OWNER_ADDRESS"`
+	ContractFaucet   string `mapstructure:"CONTRACT_FAUCET"`
+	OperatorPrivateKey string  `mapstructure:"OPERATOR_PRIVATE_KEY"`
 	FaucetSignerKey    string  `mapstructure:"FAUCET_SIGNER_KEY"`
 	ChainID            int     `mapstructure:"CHAIN_ID"`
 	ChainName          string  `mapstructure:"CHAIN_NAME"`
@@ -101,11 +101,11 @@ func Load() (*Config, error) {
 		cfg.ChainName = "Hardhat"
 		cfg.ChainRPCURL = "http://127.0.0.1:8545"
 		cfg.ExplorerURL = "http://localhost:5100"
+		cfg.OperatorPrivateKey = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
 		cfg.FaucetSignerKey = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
 		cfg.ContractToken = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
 		cfg.ContractPayment = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
 		cfg.ContractFaucet = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
-		cfg.ContractWithdrawer = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"
 		cfg.S3Endpoint = "http://garage:3900"
 		cfg.S3Bucket = "short-url-ads"
 		cfg.S3PublicURL = "http://short-url-ads.web.localhost:3902"

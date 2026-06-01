@@ -18,10 +18,9 @@ func TestGetConfig(t *testing.T) {
 	_ = zap.ReplaceGlobals(zap.NewNop())
 
 	cfg := &config.Config{
-		ContractPayment:   "0x123",
-		ContractToken:     "0x456",
-		ContractFaucet:    "0x789",
-		ContractWithdrawer: "0xabc",
+		ContractPayment: "0x123",
+		ContractToken:   "0x456",
+		ContractFaucet:  "0x789",
 		TokenSymbol:     "TST",
 		TokenDecimals:   18,
 		PlatformFee:     0.005,
