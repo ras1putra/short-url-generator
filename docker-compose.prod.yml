@@ -29,12 +29,46 @@ services:
       dockerfile: Dockerfile.garage
     ports:
       - "3900:3900" # S3 API
+    env_file:
+      - ./backend/.env
     volumes:
       - ./backend/garage.toml:/etc/garage.toml:ro
       - garage_meta:/var/lib/garage/meta
       - garage_data:/var/lib/garage/data
+    entrypoint: >
+      sh -c '
+        /bin/garage server &
+        echo "Waiting for Garage S3 to start..."
+        sleep 3
+        NODE_ID=$$(/bin/garage node id -q | cut -c 1-16)
+        echo "Got Node ID: $$NODE_ID"
+        
+        if ! /bin/garage status | grep -q "local"; then
+          echo "Initializing cluster layout..."
+          /bin/garage layout assign $$NODE_ID --zone local --capacity 10G
+          /bin/garage layout apply --version 1
+        fi
+        
+        if ! /bin/garage key info $$S3_ACCESS_KEY >/dev/null 2>&1; then
+          echo "Importing production S3 keys..."
+          /bin/garage key import $$S3_ACCESS_KEY $$S3_SECRET_KEY --yes
+        fi
+        
+        if ! /bin/garage bucket info $$S3_BUCKET >/dev/null 2>&1; then
+          echo "Creating S3 bucket..."
+          /bin/garage bucket create $$S3_BUCKET
+          /bin/garage bucket allow $$S3_BUCKET --key $$S3_ACCESS_KEY --read --write --owner
+          /bin/garage bucket website --allow $$S3_BUCKET
+          echo "Garage S3 successfully initialized!"
+        else
+          # Ensure permissions are granted even if bucket existed
+          /bin/garage bucket allow $$S3_BUCKET --key $$S3_ACCESS_KEY --read --write --owner
+        fi
+        
+        wait
+      '
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3900" ]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3903/metrics" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -50,6 +84,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      garage:
         condition: service_healthy
     read_only: true
     tmpfs:
