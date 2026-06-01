@@ -14,19 +14,16 @@ WORKDIR /app
 
 ENV NEXT_PUBLIC_APP_MODE=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-# Copy package info and built assets
-COPY --from=builder --chown=bun:bun /app/package.json ./
-COPY --from=builder --chown=bun:bun /app/bun.lock ./
+# Copy standalone build assets
+COPY --from=builder --chown=bun:bun /app/.next/standalone ./
+COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
 COPY --from=builder --chown=bun:bun /app/public ./public
-COPY --from=builder --chown=bun:bun /app/.next ./.next
-
-# Install production dependencies only
-RUN bun install --production
 
 USER bun
 
 EXPOSE 3000
-ENV PORT=3000
 
-CMD ["bun", "run", "start"]
+CMD ["bun", "server.js"]
