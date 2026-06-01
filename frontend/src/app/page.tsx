@@ -6,6 +6,7 @@ import Marquee from "@/components/landing/Marquee";
 import Stats from "@/components/landing/Stats";
 import Features from "@/components/landing/Features";
 import HowItWorks from "@/components/landing/HowItWorks";
+import Earn from "@/components/landing/Earn";
 import CTA from "@/components/landing/CTA";
 import Footer from "@/components/landing/Footer";
 
@@ -26,12 +27,7 @@ export default function LandingPage() {
         <HowItWorks />
 
         <div className="divider-line mx-6 md:mx-12" />
-
-        <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto text-center">
-          <p className="text-lg text-white/40">
-            Built with care. Designed for you.
-          </p>
-        </section>
+        <Earn />
 
         <div className="divider-line mx-6 md:mx-12" />
 

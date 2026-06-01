@@ -1,7 +1,7 @@
 "use client";
 
 const MARQUEE_KEYWORDS = [
-  "Fast Redirects", "Analytics", "QR Codes", "Custom Slugs", "Link Expiry", 
+  "Fast Redirects", "Analytics", "QR Codes", "Custom Slugs", "Earn Crypto",
   "Real-time Tracking", "Geo Insights", "Secure Links", "Team Ready", "API Access"
 ];
 

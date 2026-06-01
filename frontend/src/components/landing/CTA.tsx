@@ -17,7 +17,7 @@ export default function CTA() {
           SHORT LINKS.<br />SERIOUS<br />INFRASTRUCTURE.
         </h2>
         <p className="text-lg mb-10 max-w-md mx-auto text-white/70">
-          Register in seconds. Start shortening immediately.
+          Register in seconds. Start shortening and earning immediately.
           No credit card. No limits on the free plan.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

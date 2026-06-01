@@ -22,7 +22,7 @@ export default function Hero() {
       {/* Badge */}
       <div className="fade-in inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full text-xs font-mono-dm border border-[#6EE7B7]/30 text-[#6EE7B7] bg-[#6EE7B7]/5">
         <Zap size={12} />
-        <span>Lightning-fast redirects · Trusted by thousands</span>
+        <span>Lightning-fast redirects · Earn crypto · Trusted by thousands</span>
       </div>
 
       {/* Headline */}
@@ -32,7 +32,7 @@ export default function Hero() {
       </h1>
 
       <p className="fade-in text-lg md:text-xl mb-10 max-w-xl leading-relaxed text-white/80 [animation-delay:0.2s]">
-        Create short, memorable links. Run targeted ad campaigns. Track everything in real time.
+        Create short, memorable links. Run targeted ad campaigns. Earn crypto with every click.
       </p>
 
       <div className="fade-in flex flex-col sm:flex-row items-start sm:items-center gap-4 [animation-delay:0.3s]">
