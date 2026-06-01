@@ -19,12 +19,15 @@ async function main() {
   const tokenSymbol = process.env.TOKEN_SYMBOL || "SURL";
   const tokenDecimals = process.env.TOKEN_DECIMALS || "18";
   const RewardToken = await ethers.getContractFactory("RewardToken");
-  const token = await upgrades.deployProxy(RewardToken, [tokenName, tokenSymbol, ownerAddress], {
+  const token = await upgrades.deployProxy(RewardToken, [tokenName, tokenSymbol, deployer.address], {
     initializer: "initialize",
     kind: "uups",
   });
   await token.waitForDeployment();
   const tokenAddress = await token.getAddress();
+
+  console.log("Waiting 10 seconds for RPC indexing...");
+  await new Promise(resolve => setTimeout(resolve, 10000));
 
   const tokenImpl = await upgrades.erc1967.getImplementationAddress(tokenAddress);
   console.log("RewardToken proxy:", tokenAddress);
@@ -38,16 +41,19 @@ async function main() {
   await gateway.waitForDeployment();
   const gatewayAddress = await gateway.getAddress();
 
+  console.log("Waiting 10 seconds for RPC indexing...");
+  await new Promise(resolve => setTimeout(resolve, 10000));
+
   const gatewayImpl = await upgrades.erc1967.getImplementationAddress(gatewayAddress);
   console.log("PaymentGateway proxy:", gatewayAddress);
   console.log("PaymentGateway impl: ", gatewayImpl);
 
 
-  let faucetSigner = process.env.FAUCET_SIGNER_ADDRESS;
+  let faucetSigner = process.env.FAUCET_SIGNER_PUBLIC_ADDRESS;
   if (isDevMode) {
     faucetSigner = signers[2].address;
   } else if (!faucetSigner) {
-    throw new Error("FAUCET_SIGNER_ADDRESS environment variable is required for non-development networks");
+    throw new Error("FAUCET_SIGNER_PUBLIC_ADDRESS environment variable is required for non-development networks");
   }
 
   const FaucetFactory = await ethers.getContractFactory("Faucet");
@@ -62,29 +68,35 @@ async function main() {
   const faucetAddress = await faucet.getAddress();
   console.log("Faucet:                  ", faucetAddress);
 
-  let operatorAddress = process.env.OPERATOR_SIGNER_ADDRESS;
+  let operatorAddress = process.env.OPERATOR_SIGNER_PUBLIC_ADDRESS;
   if (isDevMode) {
     operatorAddress = faucetSigner;
   } else if (!operatorAddress) {
-    throw new Error("OPERATOR_SIGNER_ADDRESS environment variable is required for non-development networks");
+    throw new Error("OPERATOR_SIGNER_PUBLIC_ADDRESS environment variable is required for non-development networks");
   }
 
-  if (isDevMode) {
-    const ownerSigner = signers[1];
-    const tokenContract = await ethers.getContractAt("RewardToken", tokenAddress, ownerSigner);
-    const fundAmount = ethers.parseUnits("1000000", 18); // 1M SURL
-    const faucetFundTx = await tokenContract.mint(faucetAddress, fundAmount);
-    await faucetFundTx.wait();
-    console.log("Faucet funded with 1,000,000 SURL");
-    const operatorFundTx = await tokenContract.mint(operatorAddress, fundAmount);
-    await operatorFundTx.wait();
-    console.log("Operator hot wallet funded with 1,000,000 SURL");
-  } else {
-    console.log(`Please fund the faucet manually. Faucet address: ${faucetAddress}`);
-    console.log(`Please fund the operator hot wallet manually (ETH + SURL). Operator address: ${operatorAddress}`);
-  }
+  console.log("Funding wallets automatically from Deployer...");
+  const tokenContract = await ethers.getContractAt("RewardToken", tokenAddress, deployer);
 
-  const outputFile = process.env.OUTPUT_FILE;
+  const faucetFundTx = await tokenContract.mint(faucetAddress, ethers.parseUnits("1000000", 18));
+  await faucetFundTx.wait();
+  console.log("Faucet funded with 1,000,000 SURL");
+  const operatorFundTx = await tokenContract.mint(operatorAddress, ethers.parseUnits("1000000", 18));
+  await operatorFundTx.wait();
+  console.log("Operator hot wallet funded with 1,000,000 SURL");
+  const ownerFundTx = await tokenContract.mint(ownerAddress, ethers.parseUnits("19998000000", 18));
+  await ownerFundTx.wait();
+  console.log("Owner wallet funded with 19,998,000,000 SURL");
+  const transferTokenTx = await tokenContract.transferOwnership(ownerAddress);
+  await transferTokenTx.wait();
+  console.log(`RewardToken ownership successfully transferred to Owner cold wallet: ${ownerAddress}`);
+
+  const gatewayContract = await ethers.getContractAt("PaymentGateway", gatewayAddress, deployer);
+  const transferGatewayTx = await gatewayContract.transferOwnership(ownerAddress);
+  await transferGatewayTx.wait();
+  console.log(`PaymentGateway ownership successfully transferred to Owner cold wallet: ${ownerAddress}`);
+
+  const outputFile = process.env.OUTPUT_FILE || "deployed-addresses.txt";
   if (outputFile) {
     const envContent = [
       `CONTRACT_TOKEN=${tokenAddress}`,
@@ -96,8 +108,8 @@ async function main() {
       `DEPLOYER_ADDRESS=${deployer.address}`,
       `TOKEN_SYMBOL=${tokenSymbol}`,
       `TOKEN_DECIMALS=${tokenDecimals}`,
-      `FAUCET_SIGNER_ADDRESS=${faucetSigner}`,
-      `OPERATOR_SIGNER_ADDRESS=${operatorAddress}`,
+      `FAUCET_SIGNER_PUBLIC_ADDRESS=${faucetSigner}`,
+      `OPERATOR_SIGNER_PUBLIC_ADDRESS=${operatorAddress}`,
       "",
     ].join("\n");
     fs.writeFileSync(outputFile, envContent);
