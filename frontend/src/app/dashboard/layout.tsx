@@ -47,7 +47,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex flex-col font-syne grain-overlay">
       <nav className="border-b border-white/[0.06] bg-[#0A0A0A]/85 backdrop-blur-xl sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-6 md:px-12">
+        <div className="mx-auto max-w-screen-2xl px-6 md:px-12">
           <div className="flex h-16 justify-between items-center">
             <div className="flex items-center gap-8">
               <Link href={ROUTE_DASHBOARD} className="flex items-center gap-2">
@@ -87,7 +87,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </nav>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 md:px-12 py-8">
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto px-6 md:px-12 py-8">
         <WebSocketProvider>
           {children}
         </WebSocketProvider>
