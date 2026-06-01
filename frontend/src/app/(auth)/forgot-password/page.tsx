@@ -7,7 +7,7 @@ import { useForgotPassword } from "@/hooks/useAuth";
 import { forgotPasswordSchema } from "@/lib/validators";
 import Link from "next/link";
 import { ROUTE_LOGIN } from "@/lib/constants";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { Loader2, Link2, ArrowLeft, MailCheck, RefreshCw } from "lucide-react";
 import { AxiosError } from "axios";
 import { ApiErrorResponse } from "@/types/api";
@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
     }, 1000);
   };
 
-  const onSubmit = (data: ForgotPasswordForm) => {
+  const onSubmit = useCallback((data: ForgotPasswordForm) => {
     setEmail(data.email);
     forgotMutation.mutate(data, {
       onSuccess: () => {
@@ -64,7 +64,10 @@ export default function ForgotPasswordPage() {
         }
       },
     });
-  };
+  }, [forgotMutation]);
+
+  // eslint-disable-next-line react-hooks/refs
+  const submitHandler = useMemo(() => handleSubmit(onSubmit), [handleSubmit, onSubmit]);
 
   const handleResend = () => {
     if (cooldown > 0) {
@@ -133,7 +136,7 @@ export default function ForgotPasswordPage() {
                 {"// Enter your email to receive a reset link"}
               </p>
 
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={submitHandler} className="space-y-6">
                 <div>
                   <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm" htmlFor="email">
                     Email Address

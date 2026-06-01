@@ -22,7 +22,6 @@ import {
   AD_EVENT_CLICK,
   AD_EVENT_COMPLETION,
   AD_EVENT_SKIP,
-  PAGE_SIZE_OPTIONS,
   DEFAULT_PAGE_SIZE,
 } from "@/lib/constants";
 

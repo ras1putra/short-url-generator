@@ -9,6 +9,7 @@ import Link from "next/link";
 export default function AdvertiserRegisterPage() {
   const router = useRouter();
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const onSuccess = async (email: string, password: string) => {
     toast.success("Advertiser account created! Check your email to verify before signing in.");
     router.push(ROUTE_LOGIN);

@@ -30,7 +30,7 @@ export function classifyWalletError(err: unknown, context: "connect" | "deposit"
   return context === "connect" ? "Failed to connect wallet" : "Transaction failed";
 }
 
-export function formatBalance(val: any): string {
+export function formatBalance(val: string | number | null | undefined): string {
   const num = Number(val || 0);
   return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
 }

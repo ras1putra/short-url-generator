@@ -6,6 +6,8 @@ import { ROUTE_LOGIN } from "@/lib/constants";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { Loader2, Link2, CheckCircle, XCircle } from "lucide-react";
+import { AxiosError } from "axios";
+import type { ApiErrorResponse } from "@/types/api";
 
 function VerifyEmailInner() {
   const searchParams = useSearchParams();
@@ -16,7 +18,7 @@ function VerifyEmailInner() {
     if (token) {
       verifyMutation.mutate({ token });
     }
-  }, [token]);
+  }, [token, verifyMutation]);
 
   if (!token) {
     return (
@@ -58,7 +60,7 @@ function VerifyEmailInner() {
         </div>
         <h2 className="text-3xl font-black tracking-tight text-white mb-2">VERIFICATION FAILED.</h2>
         <p className="text-sm text-white/40 mb-8 font-mono-dm uppercase tracking-wider">
-          {(verifyMutation.error as any)?.response?.data?.message || "The link may be invalid or expired."}
+          {(verifyMutation.error instanceof AxiosError ? (verifyMutation.error.response?.data as ApiErrorResponse)?.message : null) || "The link may be invalid or expired."}
         </p>
         <Link
           href={ROUTE_LOGIN}

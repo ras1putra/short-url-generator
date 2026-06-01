@@ -111,7 +111,7 @@ export function useDeposit() {
       setStatus("idle");
       throw e;
     }
-  }, [connectWallet, address]);
+  }, [connectWallet]);
 
   return { deposit, status, getOnChainBalance };
 }

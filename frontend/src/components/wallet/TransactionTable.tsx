@@ -1,6 +1,5 @@
 "use client";
 
-import Loading from "@/components/ui/Loading";
 import { format } from "date-fns";
 import { ArrowDownToLine, ExternalLink } from "lucide-react";
 import { useConfigStore } from "@/store/useConfigStore";
@@ -41,7 +40,7 @@ export default function TransactionTable({
   transactions, confirmations, isLoading, isFetching = false, symbol = "TK",
   page = 1, totalPages = 1, total = 0,
   search = "", sortBy = "created_at", sortDir = "desc",
-  onPageChange, onPerPageChange, onSearchChange, onSortChange,
+  onPageChange, onSearchChange, onSortChange,
 }: TransactionTableProps) {
   const explorerUrl = useConfigStore((s) => s.config)?.payment_chain?.explorer_url;
 

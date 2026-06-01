@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { AxiosError } from "axios";
 import { api } from "@/lib/api";
 import { registerSchema } from "@/lib/validators";
 import { API_AUTH_REGISTER, API_AUTH_LOGIN, API_AUTH_UPGRADE, API_AUTH_DOWNGRADE, API_AUTH_GOOGLE_LOGIN, ROUTE_LOGIN } from "@/lib/constants";
@@ -93,8 +94,10 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
       const payload = token ? { ...data, "cf-turnstile-response": token } : data;
       await api.post(API_AUTH_REGISTER, payload);
       await onSuccess(data.email, data.password);
-    } catch (err: any) {
-      const errData = err?.response?.data;
+    } catch (raw) {
+      const err = raw instanceof AxiosError ? raw : null;
+      const errData = err?.response?.data as
+        { can_upgrade?: boolean; can_downgrade?: boolean; message?: string } | undefined;
       if (err?.response?.status === 409) {
         if (errData?.can_upgrade) {
           setExistingEmail(data.email);

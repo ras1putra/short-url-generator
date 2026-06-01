@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { ChevronLeft, ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { PAGE_SIZE_OPTIONS } from "@/lib/constants";
 
@@ -75,12 +75,6 @@ export default function DataTable<T>({
   emptyDescription = "There are no items to display.",
 }: DataTableProps<T>) {
   const [localSearch, setLocalSearch] = useState(searchValue ?? "");
-
-  useEffect(() => {
-    if (searchValue !== undefined) {
-      setLocalSearch(searchValue);
-    }
-  }, [searchValue]);
 
   const handleSearchChange = (val: string) => {
     setLocalSearch(val);

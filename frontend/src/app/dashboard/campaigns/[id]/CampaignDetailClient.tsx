@@ -10,7 +10,7 @@ import { useCategories } from "@/hooks/useCategories";
 
 import { ROUTE_CAMPAIGNS, AD_STATUS_ACTIVE } from "@/lib/constants";
 import { useConfigStore } from "@/store/useConfigStore";
-import { isVideoUrl, isGifUrl } from "@/lib/media";
+import { isVideoUrl } from "@/lib/media";
 import { useAdTypes } from "@/hooks/useAds";
 import { formatBalance } from "@/lib/wallet";
 
