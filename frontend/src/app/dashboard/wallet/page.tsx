@@ -18,7 +18,7 @@ import { classifyWalletError, formatBalance } from "@/lib/wallet";
 import { useConfigStore } from "@/store/useConfigStore";
 import type { ApiErrorResponse } from "@/types/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { createPublicClient, custom, type EIP1193Provider } from "viem";
+import { createPublicClient, http } from "viem";
 import { definePaymentChain } from "@/lib/wagmi";
 import { ERC20_ABI } from "@/lib/paymentGateway";
 import { api } from "@/lib/api";
@@ -78,13 +78,10 @@ export default function WalletPage() {
     let active = true;
     const interval = setInterval(async () => {
       try {
-        const connector = await connectWallet();
-        if (!connector) return;
-        const provider = await connector.getProvider();
         const chain = definePaymentChain(cfg.payment_chain);
         const publicClient = createPublicClient({
           chain,
-          transport: custom(provider as EIP1193Provider),
+          transport: http(cfg.payment_chain.rpc_url),
         });
 
         for (const tx of pendingTxs) {
