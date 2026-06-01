@@ -27,6 +27,7 @@ import (
 	"urlshortener/pkg/constants"
 	"urlshortener/pkg/helper"
 	"urlshortener/pkg/logger"
+	"urlshortener/pkg/turnstile"
 )
 
 type qualityResult struct {
@@ -36,20 +37,23 @@ type qualityResult struct {
 }
 
 type CompletionRequest struct {
-	Fingerprint string `json:"fingerprint"`
-	HoneypotHit bool   `json:"honeypot_hit"`
-	MouseMoves  int    `json:"mouse_moves"`
+	Fingerprint    string `json:"fingerprint"`
+	HoneypotHit    bool   `json:"honeypot_hit"`
+	MouseMoves     int    `json:"mouse_moves"`
+	TurnstileToken string `json:"turnstile_token"`
 }
 
 type RedirectService struct {
-	urlSvc     URLGetter
-	repo       repository.Querier
-	worker     *analytics.AnalyticsWorker
-	geoDB      *geoip2.Reader
-	hmacSecret []byte
-	db         *sql.DB
-	redis      *redis.Client
-	qualityCfg qualityConfig
+	urlSvc             URLGetter
+	repo               repository.Querier
+	worker             *analytics.AnalyticsWorker
+	geoDB              *geoip2.Reader
+	hmacSecret         []byte
+	db                 *sql.DB
+	redis              *redis.Client
+	qualityCfg         qualityConfig
+	turnstileSiteKey   string
+	turnstileSecretKey string
 }
 
 type qualityConfig struct {
@@ -59,17 +63,16 @@ type qualityConfig struct {
 
 func NewRedirectService(urlSvc URLGetter, repo repository.Querier, worker *analytics.AnalyticsWorker, geoDB *geoip2.Reader, cfg *config.Config, db *sql.DB, redisClient *redis.Client) *RedirectService {
 	return &RedirectService{
-		urlSvc:     urlSvc,
-		repo:       repo,
-		worker:     worker,
-		geoDB:      geoDB,
-		hmacSecret: []byte(cfg.BridgeHMACSecret),
-		db:         db,
-		redis:      redisClient,
-		qualityCfg: qualityConfig{
-			minScore:     cfg.QualityMinScore,
-			minSessionMs: cfg.MinSessionMs,
-		},
+		urlSvc:             urlSvc,
+		repo:               repo,
+		worker:             worker,
+		geoDB:              geoDB,
+		hmacSecret:         []byte(cfg.BridgeHMACSecret),
+		db:                 db,
+		redis:              redisClient,
+		qualityCfg:         qualityConfig{minScore: cfg.QualityMinScore, minSessionMs: cfg.MinSessionMs},
+		turnstileSiteKey:   cfg.TurnstileSiteKey,
+		turnstileSecretKey: cfg.TurnstileSecretKey,
 	}
 }
 
@@ -501,6 +504,15 @@ func (s *RedirectService) resolveGeo(ip string) (country, city string) {
 	country = record.Country.IsoCode
 	city = record.City.Names[constants.LocaleCity]
 	return
+}
+
+func (s *RedirectService) TurnstileSiteKey() string {
+	return s.turnstileSiteKey
+}
+
+func (s *RedirectService) VerifyTurnstileToken(token string) bool {
+	ok, _ := turnstile.VerifyToken(s.turnstileSecretKey, token)
+	return ok
 }
 
 func (s *RedirectService) GetMinSessionMs() int64 {

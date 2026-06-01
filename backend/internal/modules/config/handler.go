@@ -18,12 +18,13 @@ func NewHandler(cfg *config.Config) *Handler {
 
 func (h *Handler) GetConfig(c *fiber.Ctx) error {
 	resp := dto.ConfigResponse{
-		ContractPayment: h.cfg.ContractPayment,
-		ContractToken:   h.cfg.ContractToken,
-		ContractFaucet:  h.cfg.ContractFaucet,
-		TokenSymbol:     h.cfg.TokenSymbol,
-		TokenDecimals:   h.cfg.TokenDecimals,
-		PlatformFee:     h.cfg.PlatformFee,
+		ContractPayment:  h.cfg.ContractPayment,
+		ContractToken:    h.cfg.ContractToken,
+		ContractFaucet:   h.cfg.ContractFaucet,
+		TokenSymbol:      h.cfg.TokenSymbol,
+		TokenDecimals:    h.cfg.TokenDecimals,
+		PlatformFee:      h.cfg.PlatformFee,
+		TurnstileSiteKey: h.cfg.TurnstileSiteKey,
 		PaymentChain: dto.PaymentChainResponse{
 			ChainID:     h.cfg.ChainID,
 			ChainName:   h.cfg.ChainName,

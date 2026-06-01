@@ -32,6 +32,8 @@ type Config struct {
 	RateLimitWithdrawal int     `mapstructure:"RATE_LIMIT_WITHDRAWAL"`
 	GeoIPDBPath        string  `mapstructure:"GEOIP_DB_PATH"`
 	AllowedOrigins     string  `mapstructure:"ALLOWED_ORIGINS"`
+	TurnstileSiteKey   string  `mapstructure:"TURNSTILE_SITE_KEY"`
+	TurnstileSecretKey string  `mapstructure:"TURNSTILE_SECRET_KEY"`
 	NodeRPCURL         string  `mapstructure:"NODE_RPC_URL"`
 	ChainRPCURL        string  `mapstructure:"CHAIN_RPC_URL"`
 	ContractPayment  string `mapstructure:"CONTRACT_PAYMENT"`

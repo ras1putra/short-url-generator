@@ -168,8 +168,8 @@ func main() {
 	api.Get("/ads/types", adHandler.ListAdTypes)
 
 	authGroup := api.Group("/auth", middleware.RateLimiter(redisClient, cfg.RateLimitAuth))
-	authGroup.Post("/register", authHandler.Register)
-	authGroup.Post("/login", authHandler.Login)
+	authGroup.Post("/register", middleware.Turnstile(cfg.TurnstileSecretKey), authHandler.Register)
+	authGroup.Post("/login", middleware.Turnstile(cfg.TurnstileSecretKey), authHandler.Login)
 	authGroup.Post("/refresh", authHandler.Refresh)
 	authGroup.Post("/send-verification", authHandler.SendVerification)
 	authGroup.Post("/verify-email", authHandler.VerifyEmail)

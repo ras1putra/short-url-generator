@@ -12,6 +12,7 @@ import { Loader2, Link2, ArrowRight, Eye, EyeOff, MailCheck } from "lucide-react
 import { toast } from "sonner";
 import { AxiosError } from "axios";
 import { ApiErrorResponse } from "@/types/api";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 type LoginForm = z.infer<typeof loginSchema>;
 
@@ -40,7 +41,9 @@ export default function LoginPage() {
 
   const onSubmit = (data: LoginForm) => {
     setUnverifiedEmail(null);
-    loginMutation.mutate(data, {
+    const token = window.turnstile?.getResponse();
+    const payload = token ? { ...data, "cf-turnstile-response": token } : data;
+    loginMutation.mutate(payload, {
       onError: (error) => {
         if (error.response?.data?.code === "EMAIL_NOT_VERIFIED") {
           setUnverifiedEmail(data.email);
@@ -154,6 +157,7 @@ export default function LoginPage() {
               </div>
             )}
 
+            <TurnstileWidget />
             <button
               type="submit"
               disabled={loginMutation.isPending}

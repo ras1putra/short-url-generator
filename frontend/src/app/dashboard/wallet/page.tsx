@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { padHex } from "viem";
 import { useReadContract } from "wagmi";
 import { AxiosError } from "axios";
+import Decimal from "decimal.js";
 import { classifyWalletError, formatBalance } from "@/lib/wallet";
 import { useConfigStore } from "@/store/useConfigStore";
 import type { ApiErrorResponse } from "@/types/api";
@@ -153,7 +154,7 @@ export default function WalletPage() {
       return;
     }
     const fee = cfg?.platform_fee ?? 0;
-    if (num + fee > Number(wallet?.available ?? 0)) {
+    if (new Decimal(num).add(fee).gt(wallet?.available ?? 0)) {
       toast.error(`Insufficient available balance. You need enough balance to cover the withdrawal amount and the platform fee of ${fee} ${symbol}.`);
       return;
     }
@@ -291,9 +292,8 @@ export default function WalletPage() {
                     type="button"
                     onClick={() => {
                       const fee = cfg?.platform_fee ?? 0;
-                      const maxWithdrawable = Math.max(0, Number(wallet?.available ?? 0) - fee);
-                      const cleanAmount = Math.floor(maxWithdrawable * 1e8) / 1e8;
-                      setWithdrawAmount(String(cleanAmount));
+                      const maxWithdrawable = Number(Decimal.max(0, Decimal.sub(wallet?.available ?? 0, fee)).toFixed(8));
+                      setWithdrawAmount(String(maxWithdrawable));
                     }}
                     className="text-xs text-[#6EE7B7] hover:text-[#34D399] transition-colors font-mono cursor-pointer flex items-center gap-0.5"
                   >
@@ -346,7 +346,7 @@ export default function WalletPage() {
                   type="button"
                   onClick={() => {
                     const fee = cfg?.platform_fee ?? 0;
-                    const maxWithdrawable = Math.max(0, Number(wallet?.available ?? 0) - fee);
+                    const maxWithdrawable = Number(Decimal.max(0, Decimal.sub(wallet?.available ?? 0, fee)).toFixed(8));
                     setWithdrawAmount(String(maxWithdrawable));
                   }}
                   className="text-xs text-[#6EE7B7] hover:text-[#34D399] transition-colors font-mono cursor-pointer flex items-center gap-0.5"

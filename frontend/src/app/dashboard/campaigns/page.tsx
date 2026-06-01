@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import Decimal from "decimal.js";
 import { createAdSchema, CreateAdForm } from "@/lib/validators";
 import {
   ROLE_ADVERTISER,
@@ -269,7 +270,7 @@ function CreateCampaignForm({ onSuccess, walletBalance, symbol }: CreateCampaign
   }, [adType, setValue]);
 
   const onSubmit = (data: CreateAdForm) => {
-    if (Number(data.total_budget) > walletBalance) {
+    if (new Decimal(data.total_budget).gt(walletBalance)) {
       toast.error(`Insufficient platform balance. Your wallet balance is only ${formatBalance(walletBalance)} ${symbol}, but you entered a campaign budget of ${formatBalance(data.total_budget)} ${symbol}.`);
       return;
     }

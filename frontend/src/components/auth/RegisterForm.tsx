@@ -13,6 +13,7 @@ import { Loader2, ArrowRight, Eye, EyeOff, ArrowUp, ArrowDown, Megaphone, AlertT
 import { toast } from "sonner";
 import { useUserStore } from "@/store/useUserStore";
 import Dialog from "@/components/ui/Dialog";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
@@ -88,7 +89,9 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
     setExistingRole(null);
     setPending(true);
     try {
-      await api.post(API_AUTH_REGISTER, data);
+      const token = window.turnstile?.getResponse();
+      const payload = token ? { ...data, "cf-turnstile-response": token } : data;
+      await api.post(API_AUTH_REGISTER, payload);
       await onSuccess(data.email, data.password);
     } catch (err: any) {
       const errData = err?.response?.data;
@@ -311,6 +314,7 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
                 {errors.confirmPassword && <p className="mt-1 text-xs text-red-400 font-medium">{errors.confirmPassword.message}</p>}
               </div>
 
+              <TurnstileWidget />
               <button
                 type="submit"
                 disabled={pending}

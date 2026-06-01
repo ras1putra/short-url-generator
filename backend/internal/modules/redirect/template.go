@@ -10,9 +10,15 @@ import (
 	"urlshortener/pkg/constants"
 )
 
-func RenderInterstitial(ads []repository.Ad, url repository.Url, bridgeToken string, primaryAdID uuid.UUID) string {
+func RenderInterstitial(ads []repository.Ad, url repository.Url, bridgeToken string, primaryAdID uuid.UUID, turnstileSiteKey string) string {
 	targetURL := url.Original
 	g := GroupAds(ads)
+	turnstileHead := ""
+	turnstileBody := ""
+	if turnstileSiteKey != "" {
+		turnstileHead = fmt.Sprintf(`<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`)
+		turnstileBody = fmt.Sprintf(`<div class="cf-turnstile" data-sitekey="%s" data-size="invisible" data-callback="onTurnstileSuccess"></div>`, turnstileSiteKey)
+	}
 
 	var popupHTML string
 	if len(g.Popup) > 0 {
@@ -56,11 +62,10 @@ func RenderInterstitial(ads []repository.Ad, url repository.Url, bridgeToken str
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Redirecting...</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+%s
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:0}
-
-/* ── Popup overlay ── */
 #popup-overlay{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.35);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px}
 #popup-overlay.hidden{display:none}
 .popup-card{position:relative;height:90vh;width:min(100vw,calc(90vh*5/6));max-width:100vw;aspect-ratio:5/6;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.15),0 0 0 1px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:center}
@@ -71,20 +76,12 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 .popup-card .popup-close:hover{background:rgba(0,0,0,.12);color:#0f172a}
 .popup-card .popup-media{display:block;width:100%%;height:100%%}
 .popup-card .popup-media img,.popup-card .popup-media video{width:100%%;height:100%%;object-fit:cover}
-
-/* ── Main layout ── */
 #main-content{width:100%%;max-width:1100px;height:100vh;padding:16px;display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr 1fr auto;gap:12px;margin:0 auto}
-@media(min-width:960px){
-  #main-content{grid-template-columns:1.1fr .9fr;grid-template-rows:auto 1fr auto;align-content:stretch}
-}
-
-/* ── Banner ── */
+@media(min-width:960px){#main-content{grid-template-columns:1.1fr .9fr;grid-template-rows:auto 1fr auto;align-content:stretch}}
 .banner-strip{width:100%%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid rgba(0,0,0,.06);box-shadow:0 4px 20px -2px rgba(0,0,0,.05)}
 .banner-strip a{display:block;width:100%%}
 .banner-strip img,.banner-strip video{width:100%%;height:96px;object-fit:cover;display:block}
 @media(min-width:960px){.banner-strip{grid-column:1 / -1}}
-
-/* ── Native grid ── */
 .native-grid{display:grid;grid-template-columns:1fr;gap:12px;min-height:0}
 .native-card{background:#ffffff;border-radius:16px;border:1px solid rgba(0,0,0,.06);box-shadow:0 4px 20px -2px rgba(0,0,0,.05);overflow:hidden;transition:border-color .2s,transform .2s,box-shadow .2s}
 .native-card:hover{border-color:rgba(75,85,99,.35);transform:translateY(-2px);box-shadow:0 10px 25px -5px rgba(0,0,0,.12),0 8px 16px -6px rgba(0,0,0,.08)}
@@ -95,16 +92,12 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 .native-card .body .desc{font-size:13px;color:#475569;line-height:1.5}
 .native-card .body .btn{display:inline-flex;align-items:center;gap:4px;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:600;text-decoration:none;background:linear-gradient(135deg,#4b5563,#111827);color:#fff;align-self:flex-start;box-shadow:0 4px 12px rgba(0,0,0,.22);transition:opacity .2s}
 .native-card .body .btn:hover{opacity:.9}
-
-/* ── Video ── */
 .video-section{width:100%%;background:#ffffff;border-radius:16px;border:1px solid rgba(0,0,0,.06);box-shadow:0 4px 20px -2px rgba(0,0,0,.05);overflow:hidden;min-height:0}
 .video-section video{width:100%%;display:block;height:220px;object-fit:cover}
 .video-section .body{padding:14px;display:flex;flex-direction:column;gap:8px}
 .video-section .body .title{font-size:15px;font-weight:600;color:#0f172a}
 .video-section .body .btn{display:inline-flex;align-items:center;gap:4px;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:600;text-decoration:none;background:linear-gradient(135deg,#4b5563,#111827);color:#fff;align-self:flex-start;box-shadow:0 4px 12px rgba(0,0,0,.22);transition:opacity .2s}
 .video-section .body .btn:hover{opacity:.9}
-
-/* ── Interstitial ── */
 .interst-section{width:100%%;background:#ffffff;border-radius:16px;border:1px solid rgba(0,0,0,.06);box-shadow:0 4px 20px -2px rgba(0,0,0,.05);overflow:hidden;position:relative;min-height:0;display:flex;align-items:center;justify-content:center}
 .interst-section img,.interst-section video{position:absolute;inset:0;width:100%%;height:100%%;object-fit:cover}
 .interst-section .overlay{position:relative;z-index:1;padding:40px 24px;text-align:center;background:linear-gradient(to top,rgba(15,23,42,.95),rgba(15,23,42,.45));width:100%%}
@@ -112,8 +105,6 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 .interst-section .overlay .desc{font-size:14px;color:rgba(255,255,255,.75);margin-bottom:16px}
 .interst-section .overlay .btn{display:inline-flex;align-items:center;gap:4px;padding:10px 24px;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;background:#fff;color:#0f172a;transition:background .2s}
 .interst-section .overlay .btn:hover{background:#f1f5f9}
-
-/* ── Footer countdown (app-style) ── */
 .footer{width:100%%;display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:4px}
 @media(min-width:960px){.footer{grid-column:1 / -1}}
 .countdown-widget{display:flex;align-items:center;gap:12px}
@@ -130,8 +121,6 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 .skip-btn:disabled{opacity:.4;cursor:not-allowed;background:rgba(0,0,0,.02);color:#94a3b8;border-color:rgba(0,0,0,.04)}
 .skip-btn .arrow{font-size:15px;transition:transform .2s}
 .skip-btn:hover:not(:disabled) .arrow{transform:translateX(3px)}
-
-/* ── Anti-adblock wall ── */
 #adblock-wall{display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.95);backdrop-filter:blur(12px);align-items:center;justify-content:center;padding:24px;text-align:center;color:#fff;font-family:'DM Sans',sans-serif}
 #adblock-wall.show{display:flex}
 #adblock-wall .wall-content{max-width:420px}
@@ -141,6 +130,7 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 </style>
 </head>
 <body>
+%s
 <div id="adblock-wall"><div class="wall-content"><div class="wall-icon">&#128274;</div><h2>Ad Blocker Detected</h2><p>Please disable your ad blocker to continue. This helps keep content free for everyone.</p></div></div>
 %s
 <div id="main-content">
@@ -174,6 +164,8 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 <button id="honeypot-btn" style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:.01" onclick="void(0)"></button>
 
 <script>
+var turnstileToken='';
+function onTurnstileSuccess(t){turnstileToken=t}
 (function(){
   var wall=document.getElementById('adblock-wall');
   var blocked=false;
@@ -214,7 +206,7 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
       if(cb)cb();
     };
     x.onerror=function(){if(cb)cb()};
-    x.send(JSON.stringify({fingerprint:fp,honeypot_hit:honeypotHit,mouse_moves:mm}));
+    x.send(JSON.stringify({fingerprint:fp,honeypot_hit:honeypotHit,mouse_moves:mm,turnstile_token:turnstileToken}));
   }
 
   var popupTotal=10,ps=popupTotal,pc=document.getElementById('popup-countdown'),pb=document.getElementById('popup-close-btn'),ppb=document.getElementById('popup-progress-bar');
@@ -287,7 +279,7 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 })();
 </script>
 </body>
-</html>`, popupHTML, body, targetURL, token)
+</html>`, turnstileHead, turnstileBody, popupHTML, body, targetURL, token)
 }
 
 func adMediaTag(url, adType string) string {

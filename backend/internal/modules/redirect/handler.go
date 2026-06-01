@@ -74,7 +74,7 @@ func (h *RedirectHandler) Redirect(c *fiber.Ctx) error {
 			zap.Int("active_ads_count", len(ads)),
 		)
 
-		return c.SendString(RenderInterstitial(rendered, *url, bridgeToken, primaryAdID))
+		return c.SendString(RenderInterstitial(rendered, *url, bridgeToken, primaryAdID, h.svc.TurnstileSiteKey()))
 	}
 
 	h.svc.EnqueueClick(url.ID, ip, userAgent, referer)
@@ -83,7 +83,7 @@ func (h *RedirectHandler) Redirect(c *fiber.Ctx) error {
 		zap.Strings("allowed_categories", url.AllowedCategories),
 	)
 	placeholderToken := h.svc.GenerateBridgeToken(slug, []uuid.UUID{uuid.Nil})
-	return c.SendString(RenderInterstitial(nil, *url, placeholderToken, uuid.Nil))
+	return c.SendString(RenderInterstitial(nil, *url, placeholderToken, uuid.Nil, h.svc.TurnstileSiteKey()))
 }
 
 func (h *RedirectHandler) AdClick(c *fiber.Ctx) error {
@@ -158,6 +158,11 @@ func (h *RedirectHandler) AdCompleteFlow(c *fiber.Ctx) error {
 	var req CompletionRequest
 	if err := c.BodyParser(&req); err != nil {
 		req = CompletionRequest{}
+	}
+
+	if !h.svc.VerifyTurnstileToken(req.TurnstileToken) {
+		logger.Ctx(c.UserContext()).Warn("AdCompleteFlow failed: turnstile verification failed", zap.String("slug", slug))
+		return c.Status(400).JSON(dto.ErrorResponse{Error: "CAPTCHA verification failed"})
 	}
 
 	minSessionMs := h.svc.GetMinSessionMs()

@@ -21,5 +21,6 @@ type ConfigResponse struct {
 	TokenSymbol      string               `json:"token_symbol"`
 	TokenDecimals    int                  `json:"token_decimals"`
 	PlatformFee      float64              `json:"platform_fee"`
+	TurnstileSiteKey string               `json:"turnstile_site_key"`
 	PaymentChain     PaymentChainResponse `json:"payment_chain"`
 }

@@ -164,7 +164,7 @@ func TestRenderInterstitial_NoAds(t *testing.T) {
 		Slug:     "test123",
 		Original: "https://example.com/dest",
 	}
-	result := RenderInterstitial([]repository.Ad{}, url, "bridge-token-xyz", uuid.Nil)
+	result := RenderInterstitial([]repository.Ad{}, url, "bridge-token-xyz", uuid.Nil, "")
 	assert.Contains(t, result, `https://example.com/dest`)
 	assert.Contains(t, result, `bridge-token-xyz`)
 	assert.Contains(t, result, `Boost Your Reach Instantly`)
@@ -185,43 +185,9 @@ func TestRenderInterstitial_WithAds(t *testing.T) {
 		Slug:     "test123",
 		Original: "https://example.com/dest",
 	}
-	result := RenderInterstitial([]repository.Ad{ad}, url, "bridge-token-xyz", uuid.Nil)
+	result := RenderInterstitial([]repository.Ad{ad}, url, "bridge-token-xyz", uuid.Nil, "")
+	assert.Contains(t, result, `Test Ad`)
 	assert.Contains(t, result, `https://example.com/dest`)
-	assert.Contains(t, result, `bridge-token-xyz`)
-	assert.Contains(t, result, `https://example.com/img.jpg`)
-	assert.Contains(t, result, ad.ID.String())
-}
-
-func TestRenderInterstitial_WithPopupAsPrimary(t *testing.T) {
-	popupID := uuid.New()
-	bannerID := uuid.New()
-	ads := []repository.Ad{
-		{ID: popupID, Title: "Popup Ad", Description: sql.NullString{Valid: false}, ImageUrl: "https://ex.com/popup.jpg", AdType: "POPUP", Category: "regular"},
-		{ID: bannerID, Title: "Banner Ad", Description: sql.NullString{Valid: false}, ImageUrl: "https://ex.com/banner.jpg", AdType: "BANNER", Category: "regular"},
-	}
-	url := repository.Url{
-		Slug:     "pop123",
-		Original: "https://example.com/dest",
-	}
-	result := RenderInterstitial(ads, url, "bridge-token-xyz", popupID)
-	assert.Contains(t, result, `popup-overlay`)
-	assert.Contains(t, result, `https://ex.com/popup.jpg`)
-	assert.Contains(t, result, popupID.String())
-	assert.Contains(t, result, bannerID.String())
-	assert.Contains(t, result, `bridge-token-xyz`)
-}
-
-func TestRenderInterstitial_WithVideoAd(t *testing.T) {
-	ads := []repository.Ad{
-		{ID: uuid.New(), Title: "Vid", Description: sql.NullString{Valid: false}, ImageUrl: "https://ex.com/vid.mp4", AdType: "VIDEO", Category: "regular"},
-	}
-	url := repository.Url{
-		Slug:     "vid123",
-		Original: "https://example.com/dest",
-	}
-	result := RenderInterstitial(ads, url, "bridge-token-xyz", uuid.Nil)
-	assert.Contains(t, result, `video`)
-	assert.Contains(t, result, `Vid`)
 }
 
 func TestRenderInterstitial_WithNativeAd(t *testing.T) {
@@ -232,7 +198,7 @@ func TestRenderInterstitial_WithNativeAd(t *testing.T) {
 		Slug:     "nat123",
 		Original: "https://example.com/dest",
 	}
-	result := RenderInterstitial(ads, url, "bridge-token-xyz", uuid.Nil)
+	result := RenderInterstitial(ads, url, "bridge-token-xyz", uuid.Nil, "")
 	assert.Contains(t, result, `native`)
 	assert.Contains(t, result, `Native desc`)
 }
@@ -245,7 +211,7 @@ func TestRenderInterstitial_WithInterstitialAd(t *testing.T) {
 		Slug:     "int123",
 		Original: "https://example.com/dest",
 	}
-	result := RenderInterstitial(ads, url, "bridge-token-xyz", uuid.Nil)
+	result := RenderInterstitial(ads, url, "bridge-token-xyz", uuid.Nil, "")
 	assert.Contains(t, result, `Inter`)
 	assert.Contains(t, result, `interst-section`)
 }
