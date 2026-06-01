@@ -70,7 +70,7 @@ const (
 	FaucetAmount     = 20
 	FaucetCooldown   = 24 * time.Hour
 	FaucetClaimLimit = 1
-	PollInterval     = 15 * time.Second
+	PollInterval     = 3 * time.Second
 )
 
 const (

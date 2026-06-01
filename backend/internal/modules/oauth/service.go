@@ -21,8 +21,7 @@ import (
 )
 
 const (
-	googleAuthURL     = "https://accounts.google.com/o/oauth2/v2/auth"
-
+	googleAuthURL    = "https://accounts.google.com/o/oauth2/v2/auth"
 	oauthStatePrefix = "oauth_state:"
 	oauthStateTTL    = 10 * time.Minute
 )
@@ -45,15 +44,18 @@ func NewOAuthService(db *sql.DB, repo *repository.Queries, cache cache.Cacher, c
 	}
 }
 
-
-
 func (s *OAuthService) GetLoginURL(intent string) (string, error) {
 	state, err := GenerateState()
 	if err != nil {
 		return "", err
 	}
 
-	if err := s.cache.Set(context.Background(), oauthStatePrefix+state, intent, oauthStateTTL); err != nil {
+	storedIntent := intent
+	if storedIntent == "" {
+		storedIntent = "default"
+	}
+
+	if err := s.cache.Set(context.Background(), oauthStatePrefix+state, storedIntent, oauthStateTTL); err != nil {
 		return "", err
 	}
 
@@ -77,8 +79,6 @@ func (s *OAuthService) consumeState(ctx context.Context, state string) (string, 
 	s.cache.Del(ctx, key)
 	return intent, nil
 }
-
-
 
 func (s *OAuthService) findOrCreateUser(ctx context.Context, info *oauthdto.GoogleUserInfo) (*repository.User, error) {
 	existing, err := s.repo.GetOAuthAccountByProvider(ctx, repository.GetOAuthAccountByProviderParams{
