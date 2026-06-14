@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -11,8 +12,10 @@ import (
 	"urlshortener/internal/modules/redirect/dto"
 	"urlshortener/internal/repository"
 	"urlshortener/pkg/constants"
+	"urlshortener/pkg/helper"
 	"urlshortener/pkg/logger"
 	"urlshortener/pkg/response"
+	tjvalidator "urlshortener/pkg/validator"
 )
 
 type URLGetter interface {
@@ -20,11 +23,12 @@ type URLGetter interface {
 }
 
 type RedirectHandler struct {
-	svc *RedirectService
+	svc      *RedirectService
+	validate *validator.Validate
 }
 
 func NewRedirectHandler(svc *RedirectService) *RedirectHandler {
-	return &RedirectHandler{svc: svc}
+	return &RedirectHandler{svc: svc, validate: tjvalidator.New()}
 }
 
 func (h *RedirectHandler) Redirect(c *fiber.Ctx) error {
@@ -44,6 +48,19 @@ func (h *RedirectHandler) Redirect(c *fiber.Ctx) error {
 	ip := c.IP()
 	userAgent := c.Get("User-Agent")
 	referer := c.Get("Referer")
+
+	// Try verify cookie first
+	if cookieVal := c.Cookies("nft_bypass_token"); cookieVal != "" {
+		if claims, err := h.svc.VerifyBypassCookie(c.Context(), cookieVal); err == nil {
+			h.svc.EnqueueClick(url.ID, ip, userAgent, referer)
+			logger.Ctx(c.UserContext()).Info("NFTBypass successful via cookie: redirected instantly",
+				zap.String("slug", slug),
+				zap.String("signer", claims.UserID),
+				zap.String("destination_url", url.Original),
+			)
+			return c.Redirect(url.Original, fiber.StatusFound)
+		}
+	}
 
 	if !url.IsMonetized || len(url.AllowedCategories) == 0 {
 		h.svc.EnqueueClick(url.ID, ip, userAgent, referer)
@@ -256,4 +273,59 @@ func (h *RedirectHandler) AdSkip(c *fiber.Ctx) error {
 	)
 
 	return c.Redirect(url.Original, fiber.StatusFound)
+}
+
+func (h *RedirectHandler) NFTBypass(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+
+	var req dto.NFTBypassRequest
+	if err := helper.ParseAndValidate(c, h.validate, &req); err != nil {
+		logger.Ctx(c.UserContext()).Warn("NFTBypass failed: validation failed", zap.Error(err))
+		return err
+	}
+
+	url, err := h.svc.GetURL(c.Context(), slug)
+	if err != nil {
+		logger.Ctx(c.UserContext()).Warn("NFTBypass failed: link not found", zap.String("slug", slug), zap.Error(err))
+		return c.Status(404).JSON(dto.ErrorResponse{Error: "link not found"})
+	}
+
+	signerAddress, err := h.svc.VerifyNFTBypass(c.Context(), slug, req.Message, req.Signature)
+	if err != nil {
+		logger.Ctx(c.UserContext()).Warn("NFTBypass failed: verification failed", zap.String("slug", slug), zap.Error(err))
+		return c.Status(401).JSON(dto.ErrorResponse{Error: "NFT verification failed"})
+	}
+
+	// Issue a 30-day HTTP-only cookie upon successful manual verification
+	bypassToken, err := h.svc.IssueBypassToken(signerAddress)
+	if err != nil {
+		logger.Ctx(c.UserContext()).Error("Failed to issue NFT bypass token", zap.Error(err))
+	} else {
+		c.Cookie(&fiber.Cookie{
+			Name:     "nft_bypass_token",
+			Value:    bypassToken,
+			Path:     "/",
+			Expires:  time.Now().Add(30 * 24 * time.Hour),
+			HTTPOnly: true,
+			Secure:   !h.svc.IsDev(),
+			SameSite: constants.SameSiteLax,
+		})
+	}
+
+	// Enqueue click for analytics tracking
+	ip := c.IP()
+	userAgent := c.Get("User-Agent")
+	referer := c.Get("Referer")
+	h.svc.EnqueueClick(url.ID, ip, userAgent, referer)
+
+	logger.Ctx(c.UserContext()).Info("NFTBypass successful: redirected with gasless NFT Pass",
+		zap.String("slug", slug),
+		zap.String("signer", signerAddress),
+		zap.String("destination_url", url.Original),
+	)
+
+	return c.JSON(dto.CompletionResponse{
+		Success:        true,
+		DestinationURL: url.Original,
+	})
 }

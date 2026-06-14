@@ -9,3 +9,8 @@ type CompletionResponse struct {
 	Success        bool   `json:"success"`
 	DestinationURL string `json:"destination_url"`
 }
+
+type NFTBypassRequest struct {
+	Message   string `json:"message" validate:"required"`
+	Signature string `json:"signature" validate:"required"`
+}

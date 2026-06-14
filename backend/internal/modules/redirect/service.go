@@ -28,6 +28,7 @@ import (
 	"urlshortener/pkg/helper"
 	"urlshortener/pkg/logger"
 	"urlshortener/pkg/turnstile"
+	"urlshortener/pkg/token"
 )
 
 type qualityResult struct {
@@ -54,6 +55,10 @@ type RedirectService struct {
 	qualityCfg         qualityConfig
 	turnstileSiteKey   string
 	turnstileSecretKey string
+	rpcURL             string
+	nftContractAddress string
+	jwtAccessSecret    string
+	env                string
 }
 
 type qualityConfig struct {
@@ -73,6 +78,10 @@ func NewRedirectService(urlSvc URLGetter, repo repository.Querier, worker *analy
 		qualityCfg:         qualityConfig{minScore: cfg.QualityMinScore, minSessionMs: cfg.MinSessionMs},
 		turnstileSiteKey:   cfg.TurnstileSiteKey,
 		turnstileSecretKey: cfg.TurnstileSecretKey,
+		rpcURL:             cfg.ChainRPCURL,
+		nftContractAddress: cfg.ContractNFTPass,
+		jwtAccessSecret:    cfg.JWTAccessSecret,
+		env:                cfg.Env,
 	}
 }
 
@@ -550,4 +559,35 @@ func (s *RedirectService) SelectAndTrackAds(ads []repository.Ad, urlID uuid.UUID
 	}
 
 	return rendered, renderedIDs, primaryAdID
+}
+
+func (s *RedirectService) VerifyNFTBypass(ctx context.Context, slug string, message string, signature string) (string, error) {
+	return VerifyNFTBypassChallenge(ctx, s.rpcURL, s.nftContractAddress, slug, message, signature)
+}
+
+func (s *RedirectService) VerifyBypassCookie(ctx context.Context, cookieVal string) (*token.Claims, error) {
+	claims, err := token.Validate(cookieVal, s.jwtAccessSecret, "nft_bypass")
+	if err != nil {
+		return nil, err
+	}
+
+	balance, err := QueryNFTPassBalance(ctx, s.rpcURL, s.nftContractAddress, claims.UserID)
+	if err != nil {
+		logger.Ctx(ctx).Error("Failed to query NFT Pass balance for cookie bypass", zap.Error(err))
+		return nil, fmt.Errorf("NFT Pass verification unavailable")
+	}
+
+	if balance.Sign() <= 0 {
+		return nil, fmt.Errorf("signer does not hold the required NFT Pass")
+	}
+
+	return claims, nil
+}
+
+func (s *RedirectService) IssueBypassToken(address string) (string, error) {
+	return token.IssueToken(address, "nft_holder", s.jwtAccessSecret, "nft_bypass", 30 * 24 * time.Hour)
+}
+
+func (s *RedirectService) IsDev() bool {
+	return s.env == constants.EnvDevelopment
 }

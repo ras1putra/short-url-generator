@@ -157,6 +157,7 @@ func main() {
 	app.Get("/:slug", middleware.RateLimiter(redisClient, cfg.RateLimitRedirect), redirectHandler.Redirect)
 	app.Get("/api/r/:slug/click/:adID", redirectHandler.AdClick)
 	app.Get("/api/r/:slug/skip/:adID", redirectHandler.AdSkip)
+	app.Post("/api/r/:slug/nft-bypass", redirectHandler.NFTBypass)
 	app.Post("/api/r/:slug/complete", redirectHandler.AdCompleteFlow)
 	app.Get("/api/r/:slug/complete/:adID", redirectHandler.AdComplete)
 	app.Get("/api/links/:slug/qr", linksHandler.QRCode)
