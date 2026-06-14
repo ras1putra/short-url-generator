@@ -15,19 +15,26 @@ contract PaymentGateway is OwnableUpgradeable, UUPSUpgradeable {
         _disableInitializers();
     }
 
+    error InvalidAmount();
+    error TokenTransferFailed();
+
     function initialize(address _token) external initializer {
         __Ownable_init(msg.sender);
         token = IERC20(_token);
     }
 
     function deposit(bytes32 refId, uint256 amount) external {
-        require(amount > 0, "amount zero");
-        require(token.transferFrom(msg.sender, address(this), amount), "Token transfer failed");
+        if (amount == 0) revert InvalidAmount();
+        if (!token.transferFrom(msg.sender, address(this), amount)) {
+            revert TokenTransferFailed();
+        }
         emit Deposit(msg.sender, refId, amount);
     }
 
     function withdraw(address to, uint256 amount) external onlyOwner {
-        require(token.transfer(to, amount), "Token transfer failed");
+        if (!token.transfer(to, amount)) {
+            revert TokenTransferFailed();
+        }
     }
 
     function balance() external view returns (uint256) {

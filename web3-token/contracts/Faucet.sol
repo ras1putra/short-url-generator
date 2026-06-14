@@ -31,6 +31,7 @@ contract Faucet is EIP712, ReentrancyGuard, Ownable {
     error CooldownActive(uint256 remaining);
     error ExceedsMaxClaim();
     error InsufficientFaucetBalance();
+    error TransferFailed();
 
     constructor(
         address _token,
@@ -74,7 +75,7 @@ contract Faucet is EIP712, ReentrancyGuard, Ownable {
         nonces[to] = nonce + 1;
         lastClaimTime[to] = block.timestamp;
 
-        require(token.transfer(to, amount), "Transfer failed");
+        if (!token.transfer(to, amount)) revert TransferFailed();
 
         emit ClaimRequested(to, amount, nonce);
     }
@@ -96,7 +97,7 @@ contract Faucet is EIP712, ReentrancyGuard, Ownable {
     }
 
     function withdrawTokens(address to, uint256 amount) external onlyOwner {
-        require(token.transfer(to, amount), "Transfer failed");
+        if (!token.transfer(to, amount)) revert TransferFailed();
         emit TokensWithdrawn(to, amount);
     }
 
