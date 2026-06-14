@@ -5,6 +5,7 @@ import Hero from "@/components/landing/Hero";
 import Marquee from "@/components/landing/Marquee";
 import Stats from "@/components/landing/Stats";
 import Features from "@/components/landing/Features";
+import NFTSection from "@/components/landing/NFTSection";
 import HowItWorks from "@/components/landing/HowItWorks";
 import Earn from "@/components/landing/Earn";
 import CTA from "@/components/landing/CTA";
@@ -17,6 +18,11 @@ export default function LandingPage() {
 
       <main>
         <Hero />
+
+        <div className="divider-line mx-6 md:mx-12" />
+        <NFTSection />
+
+        <div className="divider-line mx-6 md:mx-12" />
         <Marquee />
         <Stats />
 
