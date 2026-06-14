@@ -133,8 +133,22 @@ services:
         condition: service_healthy
     restart: on-failure
 
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: ipfs-node
+    ports:
+      - "127.0.0.1:5001:5001" # API Port (Private/Localhost only)
+      - "127.0.0.1:8080:8080" # Gateway Port (Private/Localhost only)
+      - "4001:4001" # Swarm Port (Public)
+    volumes:
+      - ipfs_data:/data/ipfs
+    environment:
+      - IPFS_PATH=/data/ipfs
+    restart: unless-stopped
+
 volumes:
   db_data:
   redis_data:
   garage_meta:
   garage_data:
+  ipfs_data:

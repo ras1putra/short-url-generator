@@ -200,11 +200,15 @@ services:
       - APP_MODE=dev
     command: >
       sh -c '
-        echo "Waiting for anvil-node..."
-        npx wait-on tcp:anvil-node:8545 &&
-        echo "Deploying contracts..."
-        npx hardhat run scripts/deploy.ts --network localhost &&
-        echo ""
+        echo "Waiting for anvil-node and ipfs..." &&
+        npx wait-on tcp:anvil-node:8545 tcp:ipfs:5001 &&
+        echo "Step 1: Deploying Core Contracts..." &&
+        npx hardhat run scripts/deploy-core.ts --network localhost &&
+        echo "Step 2: Uploading Assets to local IPFS..." &&
+        npx hardhat run scripts/upload-assets.ts &&
+        echo "Step 3: Deploying NFTPass..." &&
+        npx hardhat run scripts/deploy-nft.ts --network localhost &&
+        echo "" &&
         echo "=== Deployed Addresses ===" &&
         cat /shared/.web3.addresses &&
         echo "==========================" &&
@@ -213,6 +217,8 @@ services:
     depends_on:
       anvil-node:
         condition: service_healthy
+      ipfs:
+        condition: service_started
 
   otterscan:
     image: otterscan/otterscan:latest
@@ -225,9 +231,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: ipfs-node
+    ports:
+      - "5001:5001" # API Port
+      - "8080:8080" # Gateway Port
+      - "4001:4001" # Swarm Port
+    volumes:
+      - ipfs_data:/data/ipfs
+    environment:
+      - IPFS_PATH=/data/ipfs
+    restart: unless-stopped
+
 volumes:
   db_data:
   redis_data:
   web3_data:
   garage_meta:
   garage_data:
+  ipfs_data:
