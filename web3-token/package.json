@@ -6,9 +6,11 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy": "hardhat run scripts/deploy.ts",
-    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
-    "deploy:remote": "hardhat run scripts/deploy.ts --network remote",
+    "deploy-core:local": "hardhat run scripts/deploy-core.ts --network localhost",
+    "deploy-nft:local": "hardhat run scripts/deploy-nft.ts --network localhost",
+    "deploy-core:remote": "hardhat run scripts/deploy-core.ts --network remote",
+    "deploy-nft:remote": "hardhat run scripts/deploy-nft.ts --network remote",
+    "upload-assets": "hardhat run scripts/upload-assets.ts",
     "upgrade": "hardhat run scripts/upgrade.ts",
     "upgrade:remote": "hardhat run scripts/upgrade.ts --network remote",
     "node": "hardhat node"
