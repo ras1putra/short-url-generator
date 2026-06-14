@@ -1,12 +1,12 @@
 import { expect } from "chai";
 import { ethers, upgrades } from "hardhat";
-import { RewardToken, PaymentGateway } from "../typechain-types";
+import { RewardToken, PaymentGateway, Faucet } from "../typechain-types";
 
 describe("RewardToken (UUPS)", function () {
   it("should deploy via proxy with correct name, symbol, and max supply", async function () {
     const [owner] = await ethers.getSigners();
     const RewardTokenFactory = await ethers.getContractFactory("RewardToken");
-    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address], {
+    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address, ethers.parseUnits("20000000000", 18)], {
       initializer: "initialize",
       kind: "uups",
     })) as unknown as RewardToken;
@@ -14,13 +14,13 @@ describe("RewardToken (UUPS)", function () {
 
     expect(await token.name()).to.equal("ShortURL Reward");
     expect(await token.symbol()).to.equal("SURL");
-    expect(await token.MAX_SUPPLY()).to.equal(20_000_000_000n * 10n ** 18n);
+    expect(await token.maxSupply()).to.equal(20_000_000_000n * 10n ** 18n);
   });
 
   it("should allow owner to mint tokens up to max supply", async function () {
     const [owner] = await ethers.getSigners();
     const RewardTokenFactory = await ethers.getContractFactory("RewardToken");
-    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address], {
+    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address, ethers.parseUnits("20000000000", 18)], {
       initializer: "initialize",
       kind: "uups",
     })) as unknown as RewardToken;
@@ -33,20 +33,20 @@ describe("RewardToken (UUPS)", function () {
   it("should reject minting beyond max supply", async function () {
     const [owner] = await ethers.getSigners();
     const RewardTokenFactory = await ethers.getContractFactory("RewardToken");
-    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address], {
+    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address, ethers.parseUnits("20000000000", 18)], {
       initializer: "initialize",
       kind: "uups",
     })) as unknown as RewardToken;
     await token.waitForDeployment();
 
-    const max = await token.MAX_SUPPLY();
-    await expect(token.mint(owner.address, max + 1n)).to.be.revertedWith("Exceeds max supply");
+    const max = await token.maxSupply();
+    await expect(token.mint(owner.address, max + 1n)).to.be.revertedWithCustomError(token, "ExceedsMaxSupply");
   });
 
   it("should reject minting from non-owner", async function () {
     const [owner, other] = await ethers.getSigners();
     const RewardTokenFactory = await ethers.getContractFactory("RewardToken");
-    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address], {
+    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address, ethers.parseUnits("20000000000", 18)], {
       initializer: "initialize",
       kind: "uups",
     })) as unknown as RewardToken;
@@ -61,7 +61,7 @@ describe("RewardToken (UUPS)", function () {
   it("should allow token holder to burn tokens", async function () {
     const [owner] = await ethers.getSigners();
     const RewardTokenFactory = await ethers.getContractFactory("RewardToken");
-    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address], {
+    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address, ethers.parseUnits("20000000000", 18)], {
       initializer: "initialize",
       kind: "uups",
     })) as unknown as RewardToken;
@@ -75,7 +75,7 @@ describe("RewardToken (UUPS)", function () {
   it("should support upgrades", async function () {
     const [owner] = await ethers.getSigners();
     const RewardTokenFactory = await ethers.getContractFactory("RewardToken");
-    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address], {
+    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address, ethers.parseUnits("20000000000", 18)], {
       initializer: "initialize",
       kind: "uups",
     })) as unknown as RewardToken;
@@ -91,17 +91,17 @@ describe("PaymentGateway (UUPS)", function () {
   async function deployGatewayFixture() {
     const [owner, user, other] = await ethers.getSigners();
     const RewardTokenFactory = await ethers.getContractFactory("RewardToken");
-    const token = await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address], {
+    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address, ethers.parseUnits("20000000000", 18)], {
       initializer: "initialize",
       kind: "uups",
-    });
+    })) as unknown as RewardToken;
     await token.waitForDeployment();
 
     const PaymentGatewayFactory = await ethers.getContractFactory("PaymentGateway");
-    const gateway = await upgrades.deployProxy(PaymentGatewayFactory, [await token.getAddress()], {
+    const gateway = (await upgrades.deployProxy(PaymentGatewayFactory, [await token.getAddress()], {
       initializer: "initialize",
       kind: "uups",
-    });
+    })) as unknown as PaymentGateway;
     await gateway.waitForDeployment();
 
     return { token, gateway, owner, user, other };
@@ -126,7 +126,10 @@ describe("PaymentGateway (UUPS)", function () {
   it("should reject zero amount deposits", async function () {
     const { gateway, user } = await deployGatewayFixture();
     const refId = ethers.keccak256(ethers.toUtf8Bytes("test-ref"));
-    await expect(gateway.connect(user).deposit(refId, 0)).to.be.revertedWith("amount zero");
+    await expect(gateway.connect(user).deposit(refId, 0)).to.be.revertedWithCustomError(
+      gateway,
+      "InvalidAmount",
+    );
   });
 
   it("should allow owner to withdraw funds", async function () {
@@ -163,20 +166,20 @@ describe("Faucet (EIP-712)", function () {
     const [owner, signer, user] = await ethers.getSigners();
 
     const RewardTokenFactory = await ethers.getContractFactory("RewardToken");
-    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address], {
+    const token = (await upgrades.deployProxy(RewardTokenFactory, ["ShortURL Reward", "SURL", owner.address, ethers.parseUnits("20000000000", 18)], {
       initializer: "initialize",
       kind: "uups",
     })) as unknown as RewardToken;
     await token.waitForDeployment();
 
     const FaucetFactory = await ethers.getContractFactory("Faucet");
-    const faucet = await FaucetFactory.deploy(
+    const faucet = (await FaucetFactory.deploy(
       await token.getAddress(),
       signer.address,
       owner.address,
       ethers.parseUnits("20", 18),
       24 * 60 * 60,
-    );
+    )) as unknown as Faucet;
     await faucet.waitForDeployment();
 
     const fundAmount = ethers.parseUnits("10000", 18);

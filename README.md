@@ -42,7 +42,7 @@ flowchart TD
     %% Web3 Withdrawal Flow
     User -->|Request Withdrawal| API
     API -->|Submit Withdrawal TX| Operator["Operator Hot Wallet"]
-    Operator -->|Call withdraw()| Gateway
+    Operator -->|"Call withdraw()"| Gateway
     Gateway -->|Transfer SURL Reward| Wallet
 ```
 
@@ -52,7 +52,7 @@ flowchart TD
 
 | Layer | Technology |
 | :--- | :--- |
-| **Backend** | Go 1.22+, Fiber v2, PostgreSQL, Redis, sqlc |
+| **Backend** | Go 1.26+, Fiber v2, PostgreSQL, Redis, sqlc |
 | **Frontend** | Next.js 16, TypeScript, Vanilla CSS, TanStack Query, react-globe.gl, Wagmi, Viem |
 | **Web3 / Smart Contracts** | Solidity 0.8.35, Hardhat, OpenZeppelin Upgradeable (UUPS), ERC1967 |
 | **Infrastructure** | Docker Compose, Nginx (Reverse Proxy), golang-migrate |
@@ -73,7 +73,7 @@ flowchart TD
 
 ## 🚀 Step 1: Web3 Contract Configuration & Deployment
 
-Your smart contracts are upgradeable UUPS proxies. We use a **secure deployment automation pattern** where a temporary deployer key deploys the contracts, mints the initial supplies, and then securely hands over permanent control to a cold Owner wallet.
+Your smart contracts are upgradeable UUPS proxies. We use a **decoupled deployment pattern** to separate core utility deployment from NFT asset preparation and deployment. This prevents core financial redeployments if only the NFT config changes, and ensures a clean production deployment.
 
 ### 1. Configure the Web3 Environment
 Copy and configure the environment variables in `web3-token/.env`:
@@ -93,20 +93,48 @@ OPERATOR_SIGNER_PUBLIC_ADDRESS=0x... # Address used by backend to submit withdra
 ETHERSCAN_API_KEY=YOUR_BASESCAN_API_KEY
 ```
 
-### 2. Deploy to Base Sepolia
-Run the automated deployment script:
+### 2. Upload NFT Assets to IPFS
+Run the asset uploader to upload the premium 3D NFT pass video and generate the metadata CID:
 
 ```bash
-npx hardhat run scripts/deploy.ts --network remote
+npx hardhat run scripts/upload-assets.ts
 ```
 
-#### What this script automatically executes:
+Copy the generated **Metadata URI** (`ipfs://Qm...`) and save it in `web3-token/config.ts` under `NFT_PASS_CONFIG.metadataURI`.
+
+### 3. Deploy Core Contracts to Base Sepolia
+Run the core deployment script:
+
+```bash
+npx hardhat run scripts/deploy-core.ts --network remote
+```
+
+#### What this script executes:
 1. Deploys the `RewardToken` and `PaymentGateway` proxies with temporary Deployer administrative permissions.
-2. Mints **1,000,000 SURL** directly to the `Faucet` contract.
-3. Mints **1,000,000 SURL** directly to the `Operator` hot wallet.
-4. Mints **19,998,000,000 SURL** (the remaining supply cap) directly to your secure cold **Owner** wallet.
-5. Transfers **100% of permanent administrative ownership** of both contracts to your secure cold **Owner** wallet.
-6. Automatically saves all deployed coordinates into `web3-token/deployed-addresses.txt`.
+2. Deploys the `Faucet` contract.
+3. Mints **1,000,000 SURL** directly to the `Faucet` contract.
+4. Mints **1,000,000 SURL** directly to the `Operator` hot wallet.
+5. Mints **19,998,000,000 SURL** (the remaining supply cap) directly to your secure cold **Owner** wallet.
+6. Transfers **100% of permanent administrative ownership** of both contracts to your secure cold **Owner** wallet.
+7. Automatically saves all deployed coordinates into `web3-token/deployed-addresses.txt`.
+
+### 4. Deploy NFT Pass Contract to Base Sepolia
+Update your `web3-token/config.ts` file under `PRODUCTION_ADDRESSES` with the newly generated `RewardToken` proxy address (taken from `deployed-addresses.txt`):
+
+```typescript
+export const PRODUCTION_ADDRESSES = {
+  token: "0x...", // Paste RewardToken proxy address here
+  payment: "",
+  faucet: "",
+  nftPass: "",
+};
+```
+
+Then deploy the `NFTPass` contract:
+
+```bash
+npx hardhat run scripts/deploy-nft.ts --network remote
+```
 
 ---
 

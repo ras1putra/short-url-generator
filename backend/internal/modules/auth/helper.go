@@ -68,10 +68,7 @@ func (h *CookieHelper) ClearAuthCookies(c *fiber.Ctx) {
 }
 
 func (h *CookieHelper) sameSite() string {
-	if h.cfg.IsDev() {
-		return constants.SameSiteLax
-	}
-	return constants.SameSiteStrict
+	return constants.SameSiteLax
 }
 
 func issueTokens(user repository.User, cfg *config.Config) (accessToken, refreshToken string, err error) {
