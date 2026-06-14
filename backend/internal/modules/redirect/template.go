@@ -62,6 +62,7 @@ func RenderInterstitial(ads []repository.Ad, url repository.Url, bridgeToken str
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Redirecting...</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 %s
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -127,6 +128,10 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
 #adblock-wall h2{font-size:22px;font-weight:700;margin-bottom:12px}
 #adblock-wall p{font-size:14px;color:rgba(255,255,255,.7);margin-bottom:24px;line-height:1.6}
 #adblock-wall .wall-icon{font-size:48px;margin-bottom:16px}
+.web3-btn{background:#10b981;border:1px solid #059669;color:#fff;font-size:13px;font-weight:600;cursor:pointer;padding:10px 20px;border-radius:12px;transition:all .2s;font-family:inherit;display:flex;align-items:center;gap:6px}
+.web3-btn:hover{background:#059669;box-shadow:0 0 12px rgba(16,185,129,0.4)}
+.buy-link{font-size:12px;color:#64748b;text-decoration:none;font-weight:500;align-self:center;margin-right:8px;transition:color .2s}
+.buy-link:hover{color:#0f172a;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -155,9 +160,15 @@ body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;height:10
         <span class="sublabel" id="countdown-sub">Please wait...</span>
       </div>
     </div>
-    <button class="skip-btn" id="skip-btn" disabled onclick="skipAd()">
-      Skip <span class="arrow">→</span>
-    </button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a href="/" target="_blank" class="buy-link">Don't have the NFT? Get it here</a>
+      <button class="web3-btn" id="web3-btn" onclick="bypassWithNFT()">
+        ⚡ Skip with NFT Pass
+      </button>
+      <button class="skip-btn" id="skip-btn" disabled onclick="skipAd()">
+        Skip <span class="arrow">→</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -276,6 +287,62 @@ function onTurnstileSuccess(t){turnstileToken=t}
     if(sub)sub.textContent='Verifying...';
     postComplete(function(){window.location.href=targetURL});
   }
+
+  async function bypassWithNFT() {
+    if (typeof window.ethereum === 'undefined') {
+      alert('Please install MetaMask or a compatible Web3 wallet.');
+      return;
+    }
+    const btn = document.getElementById('web3-btn');
+    const originalText = btn.innerHTML;
+    try {
+      btn.disabled = true;
+      btn.innerHTML = 'Connecting...';
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      
+      btn.innerHTML = 'Signing Challenge...';
+      const timestamp = Math.floor(Date.now() / 1000);
+      const slug = bridgeToken.split(':')[0];
+      const message = "Prove ownership of NFT Pass for /" + slug + " at " + timestamp;
+      const signature = await signer.signMessage(message);
+      
+      btn.innerHTML = 'Verifying Pass...';
+      const x = new XMLHttpRequest();
+      x.open('POST', '/api/r/' + slug + '/nft-bypass', true);
+      x.setRequestHeader('Content-Type', 'application/json');
+      x.onload = function() {
+        if (x.status === 200) {
+          const r = JSON.parse(x.responseText);
+          if (r.success) {
+            window.location.href = r.destination_url;
+            return;
+          }
+        }
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        try {
+          const err = JSON.parse(x.responseText);
+          alert('Bypass failed: ' + (err.error || 'Unknown error'));
+        } catch(e) {
+          alert('Bypass failed. Ensure you hold the required NFT Pass.');
+        }
+      };
+      x.onerror = function() {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        alert('Network error verifying NFT Pass.');
+      };
+      x.send(JSON.stringify({ message: message, signature: signature }));
+    } catch (err) {
+      console.error(err);
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+      alert('Error: ' + (err.message || 'Signature request rejected.'));
+    }
+  }
+  window.bypassWithNFT = bypassWithNFT;
 })();
 </script>
 </body>

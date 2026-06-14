@@ -186,7 +186,8 @@ func TestRenderInterstitial_WithAds(t *testing.T) {
 		Original: "https://example.com/dest",
 	}
 	result := RenderInterstitial([]repository.Ad{ad}, url, "bridge-token-xyz", uuid.Nil, "")
-	assert.Contains(t, result, `Test Ad`)
+	assert.Contains(t, result, `banner-strip`)
+	assert.Contains(t, result, `https://example.com/img.jpg`)
 	assert.Contains(t, result, `https://example.com/dest`)
 }
 
