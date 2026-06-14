@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased dark">
-      <body className="min-h-full flex flex-col grain-overlay">
+    <html lang="en" className="h-full antialiased dark" suppressHydrationWarning>
+      <body className="min-h-full flex flex-col grain-overlay" suppressHydrationWarning>
         <Providers>{children}</Providers>
         <Toaster position="top-right" theme="dark" toastOptions={{ className: "cyberpunk-toast" }} />
       </body>

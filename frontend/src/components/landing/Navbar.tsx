@@ -14,9 +14,9 @@ export default function Navbar() {
       </div>
 
       <div className="hidden md:flex items-center gap-8 text-sm text-white/80">
-        <a href="#features" className="hover:text-white transition-colors">Features</a>
-        <a href="#how" className="hover:text-white transition-colors">How it works</a>
-        <a href="#stats" className="hover:text-white transition-colors">Plus points</a>
+        <Link href="/#features" className="hover:text-white transition-colors">Features</Link>
+        <Link href="/#how" className="hover:text-white transition-colors">How it works</Link>
+        <Link href="/#stats" className="hover:text-white transition-colors">Plus points</Link>
         <Link href="/register/advertiser" className="hover:text-white transition-colors flex items-center gap-1.5">
           <Megaphone size={14} />
           Advertise

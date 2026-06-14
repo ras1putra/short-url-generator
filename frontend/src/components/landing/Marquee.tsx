@@ -13,7 +13,7 @@ export default function Marquee() {
           <div key={i} className="flex items-center gap-12 pr-12">
             {MARQUEE_KEYWORDS.map((t) => (
               <span key={t} className="text-sm font-bold tracking-widest uppercase font-mono-dm text-white/30 whitespace-nowrap">
-                {t} &nbsp;·
+                {t} {" ·"}
               </span>
             ))}
           </div>

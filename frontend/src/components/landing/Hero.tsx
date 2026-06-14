@@ -43,9 +43,9 @@ export default function Hero() {
           <Megaphone size={18} />
           Advertise with us
         </Link>
-        <a href="#how" className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors">
+        <Link href="/#how" className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors">
           See how it works <ChevronRight size={16} />
-        </a>
+        </Link>
       </div>
 
       {/* Demo card */}
