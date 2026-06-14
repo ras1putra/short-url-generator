@@ -18,6 +18,7 @@ type ConfigResponse struct {
 	ContractPayment  string               `json:"contract_payment"`
 	ContractToken    string               `json:"contract_token"`
 	ContractFaucet   string               `json:"contract_faucet"`
+	ContractNFTPass  string               `json:"contract_nft_pass"`
 	TokenSymbol      string               `json:"token_symbol"`
 	TokenDecimals    int                  `json:"token_decimals"`
 	PlatformFee      float64              `json:"platform_fee"`

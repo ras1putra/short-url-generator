@@ -14,6 +14,7 @@ export interface AppConfig {
   contract_payment: string;
   contract_token?: string;
   contract_faucet?: string;
+  contract_nft_pass?: string;
   turnstile_site_key: string;
   token_symbol: string;
   token_decimals: number;

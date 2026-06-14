@@ -21,6 +21,7 @@ func (h *Handler) GetConfig(c *fiber.Ctx) error {
 		ContractPayment:  h.cfg.ContractPayment,
 		ContractToken:    h.cfg.ContractToken,
 		ContractFaucet:   h.cfg.ContractFaucet,
+		ContractNFTPass:  h.cfg.ContractNFTPass,
 		TokenSymbol:      h.cfg.TokenSymbol,
 		TokenDecimals:    h.cfg.TokenDecimals,
 		PlatformFee:      h.cfg.PlatformFee,
