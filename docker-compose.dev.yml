@@ -70,6 +70,9 @@ services:
       - garage_meta:/var/lib/garage/meta
       - garage_data:/var/lib/garage/data
       - web3_data:/shared
+    networks:
+      - default
+      - short-url-network
     entrypoint: >
       sh -c '
         /bin/garage server &
@@ -142,6 +145,8 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    env_file:
+      - ./frontend/.env
     depends_on:
       - backend
     restart: unless-stopped
@@ -182,6 +187,9 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    networks:
+      - default
+      - short-url-network
     restart: unless-stopped
 
   deploy-web3:
@@ -251,3 +259,8 @@ volumes:
   garage_meta:
   garage_data:
   ipfs_data:
+
+networks:
+  short-url-network:
+    name: short-url-network
+    driver: bridge

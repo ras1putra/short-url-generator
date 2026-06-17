@@ -77,3 +77,4 @@ Thumbs.db
 /web3-token/cache/
 /web3-token/typechain-types/
 /web3-token/.env
+/web3-token/metadata-cid.json
