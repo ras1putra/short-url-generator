@@ -109,7 +109,7 @@ func Load() (*Config, error) {
 		cfg.ContractToken = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
 		cfg.ContractPayment = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
 		cfg.ContractFaucet = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
-		cfg.ContractNFTPass = "0x0165878A594ca255338adfa4d48449f69242Eb8F"
+		cfg.ContractNFTPass = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
 		cfg.S3Endpoint = "http://garage:3900"
 		cfg.S3Bucket = "short-url-ads"
 		cfg.S3PublicURL = "http://short-url-ads.web.localhost:3902"
