@@ -74,7 +74,7 @@ export default function LinkTable() {
           <span className="text-[#6EE7B7] font-medium mr-2">{link.short_url}</span>
           <button
             onClick={() => copyToClipboard(link.short_url, link.slug)}
-            className="text-white/30 hover:text-white transition-colors opacity-0 group-hover:opacity-100 hover:cursor-pointer"
+            className="text-white/30 hover:text-white transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:cursor-pointer"
           >
             {copiedSlug === link.slug ? (
               <span className="text-xs text-[#6EE7B7] font-medium ml-1">Copied!</span>
@@ -216,9 +216,9 @@ export default function LinkTable() {
           }}
           className="bg-white/[0.03] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#6EE7B7]/50 transition-all cursor-pointer"
         >
-          <option value="" className="bg-[#0A0A0A]">All Links</option>
-          <option value="true" className="bg-[#0A0A0A]">Monetized</option>
-          <option value="false" className="bg-[#0A0A0A]">Non-Monetized</option>
+          <option value=""className="bg-[#0A0A0A]">All Links</option>
+          <option value="true"className="bg-[#0A0A0A]">Monetized</option>
+          <option value="false"className="bg-[#0A0A0A]">Non-Monetized</option>
         </select>
       }
       emptyIcon={<BarChart3 size={40} />}

@@ -29,7 +29,7 @@ function WagmiAppWrapper({ children }: { children: ReactNode }) {
   if (isError) {
     if (isDashboard) {
       return (
-        <div className="flex h-screen w-screen items-center justify-center bg-[#0A0A0A] p-6">
+        <div className="flex h-screen w-screen items-center justify-center bg-[#0A0A0A] p-4 sm:p-6">
           <div className="max-w-md w-full rounded-2xl bg-white/[0.02] border border-white/[0.08] overflow-hidden">
             <div className="p-8 text-center">
               <div className="mx-auto h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">

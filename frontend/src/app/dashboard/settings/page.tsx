@@ -26,7 +26,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Account Section */}
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
         <h2 className="text-lg font-bold text-white mb-4">Account</h2>
 
         <div className="flex items-center justify-between py-3 border-b border-white/[0.06]">
@@ -62,9 +62,9 @@ export default function SettingsPage() {
       </div>
 
       {/* Role Change Section */}
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
         <h2 className="text-lg font-bold text-white mb-2">Account Type</h2>
-        <p className="text-sm text-white/40 mb-6">Change your account role and available features.</p>
+        <p className="text-sm text-white/40 mb-4 sm:mb-6">Change your account role and available features.</p>
 
         {role === ROLE_USER && (
           <div className="space-y-4">
@@ -85,7 +85,7 @@ export default function SettingsPage() {
             </div>
             <button
               onClick={() => setShowUpgrade(true)}
-              className="btn-primary cursor-pointer inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wider transition-all"
+              className="btn-primary cursor-pointer inline-flex items-center gap-2 rounded-xl px-4 sm:px-6 py-3 text-sm font-bold uppercase tracking-wider transition-all"
             >
               <ArrowUp size={16} />
               Upgrade to Advertiser
@@ -111,7 +111,7 @@ export default function SettingsPage() {
             </div>
             <button
               onClick={() => setShowDowngrade(true)}
-              className="cursor-pointer inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wider transition-all bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
+              className="cursor-pointer inline-flex items-center gap-2 rounded-xl px-4 sm:px-6 py-3 text-sm font-bold uppercase tracking-wider transition-all bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
             >
               <ArrowDown size={16} />
               Downgrade to Regular User

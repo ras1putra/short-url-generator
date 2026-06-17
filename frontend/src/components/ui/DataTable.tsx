@@ -121,12 +121,12 @@ export default function DataTable<T>({
       }`}
     >
       {title && (
-        <div className="px-6 pt-6 pb-2 border-b border-white/[0.04]">
+        <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 border-b border-white/[0.04]">
           {title}
         </div>
       )}
       {showSearchOrFilter && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-6 py-4 border-b border-white/[0.06]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-4 sm:px-6 py-4 border-b border-white/[0.06]">
           {onSearchChange && (
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -144,7 +144,7 @@ export default function DataTable<T>({
       )}
 
       {!hasData ? (
-        <div className="px-6 py-16 text-center flex flex-col items-center justify-center">
+        <div className="px-4 sm:px-6 py-16 text-center flex flex-col items-center justify-center">
           {emptyIcon && <div className="mb-4 text-white/20">{emptyIcon}</div>}
           <h2 className="text-xl font-bold text-white/60 mb-2">{emptyTitle}</h2>
           <p className="text-white/40 text-sm max-w-md mx-auto">{emptyDescription}</p>
@@ -159,7 +159,7 @@ export default function DataTable<T>({
                     <th
                       key={idx}
                       scope="col"
-                      className={`px-6 py-4 text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm ${
+                      className={`px-4 sm:px-6 py-4 text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm ${
                         col.sortable ? "cursor-pointer select-none hover:text-white/70 transition-colors" : ""
                       } ${col.className ?? "text-left"}`}
                       onClick={() => handleHeaderClick(col)}
@@ -179,7 +179,7 @@ export default function DataTable<T>({
                     }`}
                   >
                     {columns.map((col, colIdx) => (
-                      <td key={colIdx} className={`px-6 py-4 whitespace-nowrap text-sm ${col.className ?? "text-left"}`}>
+                      <td key={colIdx} className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm ${col.className ?? "text-left"}`}>
                         {col.cell
                           ? col.cell(row, rowIdx)
                           : col.accessorKey
@@ -194,7 +194,7 @@ export default function DataTable<T>({
           </div>
 
           {onPageChange && (totalPages > 1 || hasData) && (
-            <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-white/[0.06] gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-4 border-t border-white/[0.06] gap-4">
               <div className="flex items-center gap-4 order-2 sm:order-1">
                 <span className="text-sm text-white/50 whitespace-nowrap">
                   Page {page} of {totalPages} {totalItems > 0 && `(${totalItems} total)`}

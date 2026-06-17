@@ -22,7 +22,7 @@ export default function DashboardGlobe() {
 
   if (error) {
     return (
-      <div className="rounded-2xl bg-red-900/20 p-6 border border-red-900/50 text-red-300">
+      <div className="rounded-2xl bg-red-900/20 p-4 sm:p-6 border border-red-900/50 text-red-300">
         {(error as AxiosError<ApiErrorResponse>)?.response?.data?.message || "Failed to load statistics"}
       </div>
     );
@@ -46,9 +46,9 @@ export default function DashboardGlobe() {
   const latestLink = linksData?.links?.[0];
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 flex items-center">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 flex items-center">
           <div className="h-12 w-12 rounded-xl bg-[#6EE7B7]/10 flex items-center justify-center mr-4">
             <MousePointerClick className="h-6 w-6 text-[#6EE7B7]" />
           </div>
@@ -58,7 +58,7 @@ export default function DashboardGlobe() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 flex items-center">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 flex items-center">
           <div className="h-12 w-12 rounded-xl bg-[#6EE7B7]/10 flex items-center justify-center mr-4">
             <Users className="h-6 w-6 text-[#6EE7B7]" />
           </div>
@@ -68,7 +68,7 @@ export default function DashboardGlobe() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 flex items-center">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 flex items-center">
           <div className="h-12 w-12 rounded-xl bg-[#6EE7B7]/10 flex items-center justify-center mr-4">
             <Link2 className="h-6 w-6 text-[#6EE7B7]" />
           </div>
@@ -79,7 +79,7 @@ export default function DashboardGlobe() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
         <h3 className="text-lg font-bold text-white mb-4 flex items-center">
           <Globe2 className="mr-2 h-5 w-5 text-[#6EE7B7]" />
           Global Reach
@@ -97,8 +97,8 @@ export default function DashboardGlobe() {
       </div>
 
       {latestLink && stats.clicks_per_day.length > 0 && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-          <h3 className="text-sm font-medium text-white/50 mb-2">Last activity: {format(new Date(stats.clicks_per_day[0].date), 'MMM d, yyyy')}</h3>
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
+          <h3 className="text-sm font-medium text-white/50 mb-2">Last activity: {format(new Date(stats.clicks_per_day[0].date),'MMM d, yyyy')}</h3>
         </div>
       )}
     </div>

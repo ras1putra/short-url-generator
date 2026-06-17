@@ -151,8 +151,8 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4 font-syne grain-overlay">
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white/[0.02] shadow-2xl border border-white/[0.08] backdrop-blur-xl glow-green fade-in">
-        <div className="p-8">
-          <div className="flex items-center gap-2 mb-10">
+        <div className="p-4 sm:p-8">
+          <div className="flex items-center gap-2 mb-4 sm:mb-10">
             <div className="h-8 w-8 rounded-lg bg-[#6EE7B7] flex items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A0A0A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -162,16 +162,16 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
             <span className="text-xl font-bold text-white tracking-tight">go-short</span>
           </div>
 
-          <h2 className="text-4xl font-black tracking-tight text-white mb-2">{title}</h2>
-          <p className="text-sm text-white/40 mb-10 font-mono-dm uppercase tracking-wider">{subtitle}</p>
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-2">{title}</h2>
+          <p className="text-sm text-white/40 mb-4 sm:mb-10 font-mono-dm uppercase tracking-wider">{subtitle}</p>
 
           {existingEmail && existingRole === "user" && (
-            <div className="fade-in rounded-2xl p-6 bg-white/[0.06] border border-white/[0.12]">
+            <div className="fade-in rounded-2xl p-4 sm:p-6 bg-white/[0.06] border border-white/[0.12]">
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-48 h-24 rounded-full bg-[radial-gradient(ellipse,rgba(110,231,183,0.06)_0%,transparent_70%)]" />
               </div>
               <div className="relative">
-                <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full text-[10px] font-mono-dm uppercase tracking-widest border border-[#6EE7B7]/30 text-[#6EE7B7] bg-[#6EE7B7]/5">
+                <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full text-xs font-mono-dm uppercase tracking-widest border border-[#6EE7B7]/30 text-[#6EE7B7] bg-[#6EE7B7]/5">
                   <span>Upgrade available</span>
                 </div>
                 <p className="text-xs font-mono-dm text-white/50 mb-3">{"// Account exists"}</p>
@@ -186,7 +186,7 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
                 <button
                   onClick={() => setShowUpgradeConfirm(true)}
                   disabled={pending}
-                  className="cursor-pointer w-full px-6 py-3 rounded-xl text-sm font-bold tracking-tight inline-flex items-center justify-center gap-2 bg-[#22D3EE] text-[#0A0A0A] hover:bg-[#67E8F9] hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(34,211,238,0.3)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="cursor-pointer w-full px-4 sm:px-6 py-3 rounded-xl text-sm font-bold tracking-tight inline-flex items-center justify-center gap-2 bg-[#22D3EE] text-[#0A0A0A] hover:bg-[#67E8F9] hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(34,211,238,0.3)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {pending ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={16} />}
                   {pending ? "Upgrading..." : "Upgrade to Advertiser"}
@@ -204,12 +204,12 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
           )}
 
           {existingEmail && existingRole === "advertiser" && (
-            <div className="fade-in rounded-2xl p-6 bg-white/[0.06] border border-white/[0.12]">
+            <div className="fade-in rounded-2xl p-4 sm:p-6 bg-white/[0.06] border border-white/[0.12]">
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-48 h-24 rounded-full bg-[radial-gradient(ellipse,rgba(110,231,183,0.06)_0%,transparent_70%)]" />
               </div>
               <div className="relative">
-                <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full text-[10px] font-mono-dm uppercase tracking-widest border border-yellow-500/30 text-yellow-500 bg-yellow-500/5">
+                <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full text-xs font-mono-dm uppercase tracking-widest border border-yellow-500/30 text-yellow-500 bg-yellow-500/5">
                   <span>Already advertiser</span>
                 </div>
                 <p className="text-xs font-mono-dm text-white/50 mb-3">{"// Account exists"}</p>
@@ -224,7 +224,7 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
                 <button
                   onClick={() => setShowDowngradeConfirm(true)}
                   disabled={pending}
-                  className="cursor-pointer w-full px-6 py-3 rounded-xl text-sm font-bold tracking-tight inline-flex items-center justify-center gap-2 bg-white/10 text-white hover:bg-white/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="cursor-pointer w-full px-4 sm:px-6 py-3 rounded-xl text-sm font-bold tracking-tight inline-flex items-center justify-center gap-2 bg-white/10 text-white hover:bg-white/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {pending ? <Loader2 size={16} className="animate-spin" /> : <ArrowDown size={16} />}
                   {pending ? "Downgrading..." : "Downgrade to Regular User"}
@@ -242,9 +242,9 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
           )}
 
           {!existingEmail && (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
               <div>
-                <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm" htmlFor="name">
+                <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm"htmlFor="name">
                   Full Name
                 </label>
                 <input
@@ -258,7 +258,7 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm" htmlFor="email">
+                <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm"htmlFor="email">
                   Email Address
                 </label>
                 <input
@@ -272,7 +272,7 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm" htmlFor="password">
+                <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm"htmlFor="password">
                   Password
                 </label>
                 <div className="relative">
@@ -295,7 +295,7 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm" htmlFor="confirmPassword">
+                <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm"htmlFor="confirmPassword">
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -332,9 +332,9 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
 
           {!existingEmail && (
             <>
-              <div className="relative my-6 flex items-center">
+              <div className="relative my-4 sm:my-6 flex items-center">
                 <div className="flex-1 border-t border-white/[0.06]" />
-                <span className="mx-4 text-[10px] font-mono-dm uppercase tracking-[0.2em] text-white/20">or</span>
+                <span className="mx-4 text-xs font-mono-dm uppercase tracking-[0.2em] text-white/20">or</span>
                 <div className="flex-1 border-t border-white/[0.06]" />
               </div>
 
@@ -342,7 +342,7 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
                 href={googleLoginURL || API_AUTH_GOOGLE_LOGIN}
                 className="cursor-pointer flex w-full items-center justify-center gap-3 rounded-xl border border-white/[0.12] bg-white/[0.04] px-4 py-3.5 text-sm font-bold text-white uppercase tracking-wider hover:bg-white/[0.08] hover:border-white/20 hover:-translate-y-0.5 transition-all"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" className="shrink-0">
+                <svg width="20"height="20"viewBox="0 0 24 24"className="shrink-0">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -355,7 +355,7 @@ export default function RegisterForm({ title, subtitle, onSuccess, buttonLabel, 
         </div>
 
         {footer && (
-          <div className="bg-white/[0.02] px-8 py-5 border-t border-white/[0.05]">
+          <div className="bg-white/[0.02] px-4 sm:px-8 py-3 sm:py-5 border-t border-white/[0.05]">
             {footer}
           </div>
         )}

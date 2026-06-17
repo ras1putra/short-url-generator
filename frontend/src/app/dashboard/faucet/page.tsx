@@ -49,7 +49,7 @@ export default function FaucetPage() {
 
   const renderSortIcon = (col: string) => {
     if (historySortBy !== col) return <ArrowUpDown className="h-3 w-3 inline ml-1 opacity-30" />;
-    return historySortDir === "asc" ? <ArrowUp className="h-3 w-3 inline ml-1 text-[#6EE7B7]" /> : <ArrowDown className="h-3 w-3 inline ml-1 text-[#6EE7B7]" />;
+    return historySortDir === "asc"? <ArrowUp className="h-3 w-3 inline ml-1 text-[#6EE7B7]"/> : <ArrowDown className="h-3 w-3 inline ml-1 text-[#6EE7B7]" />;
   };
 
   const symbol = cfg?.token_symbol ?? "";
@@ -134,8 +134,8 @@ export default function FaucetPage() {
       </div>
 
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-        <div className="p-6 md:p-8">
-          <div className="flex flex-col md:flex-row md:items-center gap-6">
+        <div className="p-4 sm:p-6 md:p-8">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 sm:gap-6">
             <div className="h-16 w-16 rounded-2xl bg-[#22D3EE]/10 flex items-center justify-center shrink-0">
               <Droplets size={32} className="text-[#22D3EE]" />
             </div>
@@ -152,7 +152,7 @@ export default function FaucetPage() {
                 <button
                   onClick={handleClaim}
                   disabled={isPending || isComplete}
-                  className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-primary flex items-center gap-2 px-4 sm:px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isPending ? (
                     <Loader2 className="animate-spin h-4 w-4" />
@@ -171,9 +171,9 @@ export default function FaucetPage() {
                 <button
                   onClick={() => connectWallet().catch((e) => toast.error(classifyWalletError(e, "connect")))}
                   disabled={isConnecting}
-                  className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
+                  className="btn-primary flex items-center gap-2 px-4 sm:px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
                 >
-                  {isConnecting ? <Loader2 className="animate-spin h-4 w-4" /> : <Wallet className="h-4 w-4" />}
+                  {isConnecting ? <Loader2 className="animate-spin h-4 w-4"/> : <Wallet className="h-4 w-4" />}
                   {isConnecting ? "Connecting..." : "Connect Wallet"}
                 </button>
               )}
@@ -181,7 +181,7 @@ export default function FaucetPage() {
           </div>
         </div>
 
-        <div className="border-t border-white/[0.06] px-6 md:px-8 py-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="border-t border-white/[0.06] px-4 sm:px-6 md:px-8 py-4 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2 text-sm text-white/50">
             <Wallet className="h-4 w-4" />
             {address ? (
@@ -218,10 +218,10 @@ export default function FaucetPage() {
       </div>
 
       {process.env.NEXT_PUBLIC_APP_MODE === "development" && (
-        <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.02] overflow-hidden shadow-[0_0_20px_rgba(245,158,11,0.05)] relative group">
+        <div className="mt-4 sm:mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.02] overflow-hidden shadow-[0_0_20px_rgba(245,158,11,0.05)] relative group">
           <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none transition-all group-hover:bg-amber-500/15" />
-          <div className="p-6 md:p-8">
-            <div className="flex flex-col md:flex-row md:items-center gap-6">
+          <div className="p-4 sm:p-6 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-center gap-4 sm:gap-6">
               <div className="h-16 w-16 rounded-2xl bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20 animate-pulse">
                 <Flame size={32} className="text-amber-400" />
               </div>
@@ -243,7 +243,7 @@ export default function FaucetPage() {
                   <button
                     onClick={handleDevETHClaim}
                     disabled={devETHMutation.isPending}
-                    className="flex items-center gap-2 px-6 py-3 text-sm font-bold tracking-wider uppercase rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                    className="flex items-center gap-2 px-4 sm:px-6 py-3 text-sm font-bold tracking-wider uppercase rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]"
                   >
                     {devETHMutation.isPending ? (
                       <Loader2 className="animate-spin h-4 w-4" />
@@ -256,9 +256,9 @@ export default function FaucetPage() {
                   <button
                     onClick={() => connectWallet().catch((e) => toast.error(classifyWalletError(e, "connect")))}
                     disabled={isConnecting}
-                    className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
+                    className="btn-primary flex items-center gap-2 px-4 sm:px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
                   >
-                    {isConnecting ? <Loader2 className="animate-spin h-4 w-4" /> : <Wallet className="h-4 w-4" />}
+                    {isConnecting ? <Loader2 className="animate-spin h-4 w-4"/> : <Wallet className="h-4 w-4" />}
                     {isConnecting ? "Connecting..." : "Connect Wallet"}
                   </button>
                 )}
@@ -269,10 +269,10 @@ export default function FaucetPage() {
       )}
 
       <div className="mt-12">
-        <h2 className="text-xl font-bold text-white/90 mb-6">Claim History</h2>
+        <h2 className="text-xl font-bold text-white/90 mb-4 sm:mb-6">Claim History</h2>
 
         <div className="rounded-2xl bg-white/[0.02] border border-white/[0.08] overflow-hidden">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-6 py-4 border-b border-white/[0.06]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-4 sm:px-6 py-4 border-b border-white/[0.06]">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
               <input
@@ -295,13 +295,13 @@ export default function FaucetPage() {
                 <table className="min-w-full divide-y divide-white/[0.06]">
                   <thead className="bg-white/[0.02]">
                     <tr>
-                      <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm cursor-pointer select-none hover:text-white/70 transition-colors" onClick={() => handleHistorySort("amount")}>
+                      <th scope="col"className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm cursor-pointer select-none hover:text-white/70 transition-colors"onClick={() => handleHistorySort("amount")}>
                         Amount {renderSortIcon("amount")}
                       </th>
-                      <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm cursor-pointer select-none hover:text-white/70 transition-colors" onClick={() => handleHistorySort("tx_hash")}>
+                      <th scope="col"className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm cursor-pointer select-none hover:text-white/70 transition-colors"onClick={() => handleHistorySort("tx_hash")}>
                         Transaction Hash {renderSortIcon("tx_hash")}
                       </th>
-                      <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm cursor-pointer select-none hover:text-white/70 transition-colors" onClick={() => handleHistorySort("claimed_at")}>
+                      <th scope="col"className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm cursor-pointer select-none hover:text-white/70 transition-colors"onClick={() => handleHistorySort("claimed_at")}>
                         Claimed {renderSortIcon("claimed_at")}
                       </th>
                     </tr>
@@ -309,10 +309,10 @@ export default function FaucetPage() {
                   <tbody className="divide-y divide-white/[0.06]">
                     {history.map((item: FaucetHistoryItem) => (
                       <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           <span className="text-green-400 font-mono-dm">{Number(item.amount) / 1e18} {symbol}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           {explorerUrl ? (
                             <a
                               href={`${explorerUrl}/tx/${item.tx_hash}`}
@@ -329,7 +329,7 @@ export default function FaucetPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
                           <div className="flex items-center justify-end gap-1.5 text-sm text-white/50 font-mono-dm">
                             <Clock className="h-3.5 w-3.5 text-white/30" />
                             {formatDistanceToNowStrict(new Date(item.claimed_at), { addSuffix: true })}
@@ -341,7 +341,7 @@ export default function FaucetPage() {
                 </table>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-white/[0.06] gap-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-4 border-t border-white/[0.06] gap-4">
                 <div className="flex items-center gap-4 order-2 sm:order-1">
                   <span className="text-sm text-white/50 whitespace-nowrap">
                     Page {historyPage} of {historyTotalPages}
@@ -380,7 +380,7 @@ export default function FaucetPage() {
               </div>
             </>
           ) : (
-            <div className="px-6 py-16 text-center">
+            <div className="px-4 sm:px-6 py-16 text-center">
               <Droplets size={40} className="mx-auto mb-4 text-white/20" />
               <h2 className="text-xl font-bold text-white/60 mb-2">
                 {historySearch ? "No claims match your search" : "No claims yet"}

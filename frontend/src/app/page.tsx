@@ -19,23 +19,23 @@ export default function LandingPage() {
       <main>
         <Hero />
 
-        <div className="divider-line mx-6 md:mx-12" />
+        <div className="divider-line mx-4 sm:mx-6 md:mx-12" />
         <NFTSection />
 
-        <div className="divider-line mx-6 md:mx-12" />
+        <div className="divider-line mx-4 sm:mx-6 md:mx-12" />
         <Marquee />
         <Stats />
 
-        <div className="divider-line mx-6 md:mx-12" />
+        <div className="divider-line mx-4 sm:mx-6 md:mx-12" />
         <Features />
 
-        <div className="divider-line mx-6 md:mx-12" />
+        <div className="divider-line mx-4 sm:mx-6 md:mx-12" />
         <HowItWorks />
 
-        <div className="divider-line mx-6 md:mx-12" />
+        <div className="divider-line mx-4 sm:mx-6 md:mx-12" />
         <Earn />
 
-        <div className="divider-line mx-6 md:mx-12" />
+        <div className="divider-line mx-4 sm:mx-6 md:mx-12" />
 
         <CTA />
       </main>

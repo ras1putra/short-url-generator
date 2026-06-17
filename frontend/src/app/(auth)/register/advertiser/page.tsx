@@ -32,7 +32,7 @@ export default function AdvertiserRegisterPage() {
           </p>
           <p className="text-center text-sm text-white/40 mt-2">
             Want a regular account?{" "}
-            <Link href="/register" className="font-bold text-white/60 hover:text-white transition-colors">
+            <Link href="/register"className="font-bold text-white/60 hover:text-white transition-colors">
               Sign up here
             </Link>
           </p>

@@ -47,19 +47,19 @@ const FEATURES_DATA = [
 
 export default function Features() {
   return (
-    <section id="features" className="py-24 px-6 md:px-12 max-w-7xl mx-auto">
-      <div className="mb-16">
+    <section id="features"className="py-12 sm:py-16 lg:py-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto">
+      <div className="mb-8 sm:mb-12 lg:mb-16">
         <p className="text-xs font-mono-dm mb-4 tracking-widest uppercase text-[#6EE7B7]">
           Features
         </p>
-        <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-none">
+        <h2 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tight leading-none">
           EVERYTHING YOU<br />NEED TO SCALE.
         </h2>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {FEATURES_DATA.map(({ icon, title, desc }) => (
-          <div key={title} className="card-hover p-6 rounded-2xl bg-white/[0.05] border border-white/[0.12]">
+          <div key={title} className="card-hover p-4 sm:p-6 rounded-2xl bg-white/[0.05] border border-white/[0.12]">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-5 bg-[#6EE7B7]/10 text-[#6EE7B7]">
               {icon}
             </div>

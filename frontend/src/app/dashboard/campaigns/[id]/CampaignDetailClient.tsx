@@ -59,7 +59,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
 
   if (error || !ad) {
     return (
-      <div className="rounded-2xl bg-red-900/20 p-6 border border-red-900/50 text-red-300">
+      <div className="rounded-2xl bg-red-900/20 p-4 sm:p-6 border border-red-900/50 text-red-300">
         Campaign not found.
       </div>
     );
@@ -84,17 +84,17 @@ export default function CampaignDetailClient({ id }: { id: string }) {
           <ArrowLeft className="mr-1 h-4 w-4" />
           Back to Campaigns
         </Link>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="h-8 w-8 rounded-lg bg-[#22D3EE]/10 flex items-center justify-center">
                 <Megaphone size={16} className="text-[#22D3EE]" />
               </div>
-              <h1 className="text-3xl font-black tracking-tight text-white">{ad.title}</h1>
+              <h1 className="text-3xl font-black tracking-tight text-white break-all">{ad.title}</h1>
             </div>
-            <p className="mt-2 text-white/50 font-mono-dm text-sm">{"// Campaign ID: "}{ad.id}</p>
+            <p className="mt-2 text-white/50 font-mono-dm text-sm">{"// Campaign ID:"}{ad.id}</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 self-start sm:self-auto">
             <button
               onClick={handleToggleStatus}
               disabled={updateAd.isPending}
@@ -108,7 +108,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
       </div>
 
       {/* Ad Creative Preview Card */}
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 mb-6">
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 mb-4 sm:mb-6">
         <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-4">Ad Creative Preview</h3>
         {imageUrl ? (
           <div className="relative group overflow-hidden rounded-xl border border-white/10 bg-white/[0.01] max-h-[320px] flex items-center justify-center p-0"
@@ -181,11 +181,11 @@ export default function CampaignDetailClient({ id }: { id: string }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-5">
           <p className="text-xs font-bold text-green-400/70 uppercase tracking-widest font-mono-dm mb-2">Valid</p>
-          <p className="text-2xl font-black text-green-400">{stats?.valid_completions?.toLocaleString() || "0"}</p>
+          <p className="text-2xl font-black text-green-400">{stats?.valid_completions?.toLocaleString() ||"0"}</p>
         </div>
         <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
           <p className="text-xs font-bold text-red-400/70 uppercase tracking-widest font-mono-dm mb-2">Invalid</p>
-          <p className="text-2xl font-black text-red-400">{stats?.invalid_completions?.toLocaleString() || "0"}</p>
+          <p className="text-2xl font-black text-red-400">{stats?.invalid_completions?.toLocaleString() ||"0"}</p>
         </div>
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
           <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-2">Avg Quality Score</p>
@@ -201,16 +201,16 @@ export default function CampaignDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
         {/* Left Column: Details Card */}
-        <div className="lg:col-span-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+        <div className="lg:col-span-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white/90 mb-6">{isEditing ? "Edit Campaign" : "Details"}</h2>
+            <h2 className="text-lg font-bold text-white/90 mb-4 sm:mb-6">{isEditing ?"Edit Campaign":"Details"}</h2>
             <button
               onClick={() => setIsEditing(!isEditing)}
               className="flex items-center gap-1.5 text-sm font-medium transition-colors cursor-pointer text-white/50 hover:text-[#22D3EE]"
             >
-              {isEditing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+              {isEditing ? <X className="h-4 w-4"/> : <Pencil className="h-4 w-4" />}
               {isEditing ? "Cancel" : "Edit"}
             </button>
           </div>
@@ -220,7 +220,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-[#22D3EE] mb-2 uppercase tracking-widest font-mono-dm">Title</label>
-                  <input type="text" {...register("title")} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white placeholder-white/20 focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all" placeholder="Campaign title" />
+                  <input type="text"{...register("title")} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white placeholder-white/20 focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all"placeholder="Campaign title" />
                   {errors.title && <p className="mt-1 text-xs text-red-400">{errors.title.message}</p>}
                 </div>
 
@@ -237,13 +237,13 @@ export default function CampaignDetailClient({ id }: { id: string }) {
 
                 <div>
                   <label className="block text-xs font-bold text-[#22D3EE] mb-2 uppercase tracking-widest font-mono-dm">Target URL</label>
-                  <input type="url" {...register("target_url")} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all" />
+                  <input type="url"{...register("target_url")} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all" />
                   {errors.target_url && <p className="mt-1 text-xs text-red-400">{errors.target_url.message}</p>}
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-[#22D3EE] mb-2 uppercase tracking-widest font-mono-dm">Description</label>
-                  <textarea {...register("description")} rows={2} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all placeholder-white/20" placeholder="Optional description..." />
+                  <textarea {...register("description")} rows={2} className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-white focus:border-[#22D3EE]/50 focus:outline-none sm:text-sm transition-all placeholder-white/20"placeholder="Optional description..." />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -271,7 +271,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
                 <button
                   type="submit"
                   disabled={updateAd.isPending}
-                  className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
+                  className="btn-primary flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 w-full sm:w-auto"
                 >
                   {updateAd.isPending ? <Loader2 className="animate-spin h-4 w-4" /> : <Save size={16} />}
                   Save Changes
@@ -279,7 +279,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
               </div>
             </form>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Category</p>
                 <span className="text-white/60 text-sm capitalize">{ad.category}</span>
@@ -319,20 +319,20 @@ export default function CampaignDetailClient({ id }: { id: string }) {
               </div>
               <div className="md:col-span-2">
                 <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Target URL</p>
-                <a href={ad.target_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-[#22D3EE] hover:text-[#67E8F9] text-sm transition-colors break-all">
+                <a href={ad.target_url} target="_blank"rel="noopener noreferrer"className="inline-flex items-center text-[#22D3EE] hover:text-[#67E8F9] text-sm transition-colors break-all">
                   <ExternalLink className="mr-1.5 h-4 w-4 shrink-0" />
                   {ad.target_url}
                 </a>
               </div>
               <div>
                 <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Created</p>
-                <span className="text-white/60 text-sm">{format(new Date(ad.created_at), "MMM d, yyyy HH:mm")}</span>
+                <span className="text-white/60 text-sm">{format(new Date(ad.created_at),"MMM d, yyyy HH:mm")}</span>
               </div>
             </div>
           )}
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 rounded-lg bg-[#22D3EE]/10">
               <Coins className="h-5 w-5 text-[#22D3EE]" />
@@ -340,7 +340,7 @@ export default function CampaignDetailClient({ id }: { id: string }) {
             <h2 className="text-lg font-bold text-white/90">Top-Up Budget</h2>
           </div>
 
-          <p className="text-xs text-white/50 mb-6 leading-relaxed">
+          <p className="text-xs text-white/50 mb-4 sm:mb-6 leading-relaxed">
             Inject {symbol} tokens directly into this campaign&apos;s budget to instantly boost or resume ad delivery.
           </p>
 

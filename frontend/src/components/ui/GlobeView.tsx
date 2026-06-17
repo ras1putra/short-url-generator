@@ -121,7 +121,7 @@ export default function GlobeView({ points, height = 420 }: GlobeViewProps) {
   }
 
   return (
-    <div ref={containerRef} style={{ height: `${height}px`, width: "100%", position: "relative" }} className="rounded-2xl overflow-hidden">
+    <div ref={containerRef} style={{ height: `${height}px`, width: "100%", position:"relative"}} className="rounded-2xl overflow-hidden">
       {!ready && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0a0a0a]/80 backdrop-blur-sm rounded-2xl">
           <div className="flex flex-col items-center gap-3">

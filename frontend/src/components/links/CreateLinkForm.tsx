@@ -69,8 +69,8 @@ export default function CreateLinkForm() {
   };
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 mb-8">
-      <h2 className="text-xl font-bold text-white/90 mb-6">Create New Link</h2>
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 mb-8">
+      <h2 className="text-xl font-bold text-white/90 mb-4 sm:mb-6">Create New Link</h2>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
@@ -84,9 +84,9 @@ export default function CreateLinkForm() {
             <button
               type="submit"
               disabled={createMutation.isPending}
-              className="btn-primary flex items-center justify-center px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary flex items-center justify-center px-4 sm:px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createMutation.isPending ? <Loader2 className="animate-spin h-4 w-4" /> : <span className="flex items-center"><PlusCircle className="mr-2 h-4 w-4" /> Shorten</span>}
+              {createMutation.isPending ? <Loader2 className="animate-spin h-4 w-4"/> : <span className="flex items-center"><PlusCircle className="mr-2 h-4 w-4" /> Shorten</span>}
             </button>
           </div>
           {errors.url && <p className="mt-1 text-xs text-red-400 font-medium">{errors.url.message}</p>}
@@ -172,10 +172,10 @@ export default function CreateLinkForm() {
                   role="switch"
                   aria-checked={isMonetized}
                   onClick={() => setIsMonetized(!isMonetized)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isMonetized ? "bg-[#6EE7B7]" : "bg-white/10"
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isMonetized ? "bg-[#6EE7B7]":"bg-white/10"
                     }`}
                 >
-                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${isMonetized ? "translate-x-4" : "translate-x-0"
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${isMonetized ? "translate-x-4":"translate-x-0"
                     }`} />
                 </button>
               </div>

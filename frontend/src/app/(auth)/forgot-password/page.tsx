@@ -91,8 +91,8 @@ export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4 font-syne grain-overlay">
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white/[0.02] shadow-2xl border border-white/[0.08] backdrop-blur-xl glow-green fade-in">
-        <div className="p-8">
-          <div className="flex items-center gap-2 mb-10">
+        <div className="p-4 sm:p-8">
+          <div className="flex items-center gap-2 mb-4 sm:mb-10">
             <div className="h-8 w-8 rounded-lg bg-[#6EE7B7] flex items-center justify-center">
               <Link2 size={16} className="text-[#0A0A0A] stroke-[2.5]" />
             </div>
@@ -101,11 +101,11 @@ export default function ForgotPasswordPage() {
 
           {sent ? (
             <div className="text-center fade-in">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#6EE7B7]/10 mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#6EE7B7]/10 mb-4 sm:mb-6">
                 <MailCheck size={32} className="text-[#6EE7B7]" />
               </div>
-              <h2 className="text-4xl font-black tracking-tight text-white mb-2">CHECK YOUR INBOX.</h2>
-              <p className="text-sm text-white/40 mb-6 font-mono-dm uppercase tracking-wider">
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-2">CHECK YOUR INBOX.</h2>
+              <p className="text-sm text-white/40 mb-4 sm:mb-6 font-mono-dm uppercase tracking-wider">
                 {"// If that email is registered, a password reset link has been sent."}
               </p>
               <button
@@ -131,14 +131,14 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <>
-              <h2 className="text-4xl font-black tracking-tight text-white mb-2">FORGOT PASSWORD?</h2>
-              <p className="text-sm text-white/40 mb-10 font-mono-dm uppercase tracking-wider">
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-2">FORGOT PASSWORD?</h2>
+              <p className="text-sm text-white/40 mb-4 sm:mb-10 font-mono-dm uppercase tracking-wider">
                 {"// Enter your email to receive a reset link"}
               </p>
 
-              <form onSubmit={submitHandler} className="space-y-6">
+              <form onSubmit={submitHandler} className="space-y-4 sm:space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm" htmlFor="email">
+                  <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm"htmlFor="email">
                     Email Address
                   </label>
                   <input
@@ -156,14 +156,14 @@ export default function ForgotPasswordPage() {
                   disabled={forgotMutation.isPending}
                   className="btn-primary cursor-pointer flex w-full justify-center items-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {forgotMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : "Send reset link"}
+                  {forgotMutation.isPending ? <Loader2 className="animate-spin h-5 w-5"/> :"Send reset link"}
                 </button>
               </form>
             </>
           )}
         </div>
 
-        <div className="bg-white/[0.02] px-8 py-5 border-t border-white/[0.05]">
+        <div className="bg-white/[0.02] px-4 sm:px-8 py-3 sm:py-5 border-t border-white/[0.05]">
           <p className="text-center text-sm text-white/40">
             Remember your password?{" "}
             <Link href={ROUTE_LOGIN} className="font-bold text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors">

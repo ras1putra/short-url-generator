@@ -104,7 +104,7 @@ export default function TransactionTable({
         const isFailed = tx.status === TX_STATUS_FAILED;
         const amount = Number(tx.amount);
         return (
-          <span className={`font-mono-dm font-medium ${isFailed ? "text-red-400 line-through" : amount >= 0 ? "text-green-400" : "text-red-400"
+          <span className={`font-mono-dm font-medium ${isFailed ? "text-red-400 line-through": amount >= 0 ?"text-green-400":"text-red-400"
             }`}>
             {amount >= 0 ? "+" : "-"}{formatBalance(Math.abs(amount))} {symbol}
           </span>

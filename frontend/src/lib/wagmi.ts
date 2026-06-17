@@ -1,5 +1,5 @@
 import { http, createConfig } from "wagmi";
-import { injected } from "wagmi/connectors";
+import { injected, metaMask } from "wagmi/connectors";
 import { defineChain, type Chain } from "viem";
 import type { AppConfig } from "./config";
 
@@ -31,7 +31,7 @@ export function getWagmiConfig(appConfig?: AppConfig | null) {
 
   return createConfig({
     chains: [dynamicChain],
-    connectors: [injected()],
+    connectors: [injected(), metaMask()],
     transports: {
       [dynamicChain.id]: http(appConfig.payment_chain.rpc_url),
     },

@@ -7,7 +7,7 @@ const MARQUEE_KEYWORDS = [
 
 export default function Marquee() {
   return (
-    <div className="overflow-hidden py-6 border-y border-white/5">
+    <div className="overflow-hidden py-4 sm:py-6 border-y border-white/5">
       <div className="marquee">
         {[...Array(2)].map((_, i) => (
           <div key={i} className="flex items-center gap-12 pr-12">

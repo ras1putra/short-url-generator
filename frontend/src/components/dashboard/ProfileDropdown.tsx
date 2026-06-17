@@ -70,7 +70,7 @@ export default function ProfileDropdown() {
         <div className="h-8 w-8 rounded-full bg-[#6EE7B7]/20 flex items-center justify-center text-sm font-bold text-[#6EE7B7]">
           {initial}
         </div>
-        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180":""}`} />
       </button>
 
       {open && (

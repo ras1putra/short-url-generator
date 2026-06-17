@@ -135,7 +135,7 @@ export default function LinkStatCharts({ slug }: { slug: string }) {
 
   if (error) {
     return (
-      <div className="rounded-2xl bg-red-900/20 p-6 border border-red-900/50 text-red-300">
+      <div className="rounded-2xl bg-red-900/20 p-4 sm:p-6 border border-red-900/50 text-red-300">
         {(error as AxiosError<ApiErrorResponse>)?.response?.data?.message || "Failed to load statistics"}
       </div>
     );
@@ -164,9 +164,9 @@ export default function LinkStatCharts({ slug }: { slug: string }) {
   const pagination = stats.event_pagination;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {!hasClicks && (
-        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-6 flex flex-col md:flex-row items-center gap-4">
+        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 sm:p-6 flex flex-col md:flex-row items-center gap-4">
           <div className="h-10 w-10 rounded-xl bg-cyan-500/10 flex items-center justify-center shrink-0">
             <Activity className="h-5 w-5 text-cyan-400 animate-pulse" />
           </div>
@@ -180,7 +180,7 @@ export default function LinkStatCharts({ slug }: { slug: string }) {
       )}
 
       {hasClicks && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center">
             <Globe2 className="mr-2 h-5 w-5 text-[#6EE7B7]" />
             Click Distribution
@@ -191,8 +191,8 @@ export default function LinkStatCharts({ slug }: { slug: string }) {
 
       {hasClicks && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 flex items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 flex items-center">
               <div className="h-12 w-12 rounded-xl bg-[#6EE7B7]/10 flex items-center justify-center mr-4">
                 <Activity className="h-6 w-6 text-[#6EE7B7]" />
               </div>
@@ -202,7 +202,7 @@ export default function LinkStatCharts({ slug }: { slug: string }) {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 flex items-center">
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 flex items-center">
               <div className="h-12 w-12 rounded-xl bg-[#6EE7B7]/10 flex items-center justify-center mr-4">
                 <Activity className="h-6 w-6 text-[#6EE7B7]" />
               </div>
@@ -213,8 +213,8 @@ export default function LinkStatCharts({ slug }: { slug: string }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-            <h3 className="text-lg font-bold text-white mb-6 flex items-center">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
+            <h3 className="text-lg font-bold text-white mb-4 sm:mb-6 flex items-center">
               <Activity className="mr-2 h-5 w-5 text-[#6EE7B7]" />
               Clicks Over Time
             </h3>
@@ -231,16 +231,16 @@ export default function LinkStatCharts({ slug }: { slug: string }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-              <h3 className="text-lg font-bold text-white mb-6 flex items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
+              <h3 className="text-lg font-bold text-white mb-4 sm:mb-6 flex items-center">
                 <Globe2 className="mr-2 h-5 w-5 text-[#6EE7B7]" />
                 Top Countries
               </h3>
               <ul className="space-y-4">
                 {stats.top_countries.map((country) => (
                   <li key={country.country} className="flex justify-between items-center">
-                    <span className="text-white/70 font-medium">{getCountryName(country.country) || "Unknown"}</span>
+                    <span className="text-white/70 font-medium">{getCountryName(country.country) ||"Unknown"}</span>
                     <span className="bg-[#6EE7B7]/10 text-[#6EE7B7] text-xs font-bold px-2.5 py-1 rounded-full border border-[#6EE7B7]/20">
                       {country.count}
                     </span>
@@ -249,8 +249,8 @@ export default function LinkStatCharts({ slug }: { slug: string }) {
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-              <h3 className="text-lg font-bold text-white mb-6 flex items-center">
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
+              <h3 className="text-lg font-bold text-white mb-4 sm:mb-6 flex items-center">
                 <MonitorSmartphone className="mr-2 h-5 w-5 text-[#6EE7B7]" />
                 Devices
               </h3>
@@ -280,8 +280,8 @@ export default function LinkStatCharts({ slug }: { slug: string }) {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-              <h3 className="text-lg font-bold text-white mb-6 flex items-center">
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6">
+              <h3 className="text-lg font-bold text-white mb-4 sm:mb-6 flex items-center">
                 <Compass className="mr-2 h-5 w-5 text-[#6EE7B7]" />
                 Browsers
               </h3>

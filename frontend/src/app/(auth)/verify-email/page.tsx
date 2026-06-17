@@ -27,11 +27,11 @@ function VerifyEmailInner() {
   if (!token) {
     return (
       <div className="text-center fade-in">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-4 sm:mb-6">
           <XCircle size={32} className="text-red-400" />
         </div>
-        <h2 className="text-3xl font-black tracking-tight text-white mb-2">INVALID LINK.</h2>
-        <p className="text-sm text-white/40 mb-8 font-mono-dm uppercase tracking-wider">
+        <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-2">INVALID LINK.</h2>
+        <p className="text-sm text-white/40 mb-4 sm:mb-8 font-mono-dm uppercase tracking-wider">
           {"// No verification token found"}
         </p>
         <Link
@@ -47,8 +47,8 @@ function VerifyEmailInner() {
   if (isPending) {
     return (
       <div className="text-center fade-in">
-        <Loader2 className="animate-spin h-8 w-8 mx-auto text-white/40 mb-6" />
-        <h2 className="text-3xl font-black tracking-tight text-white mb-2">VERIFYING...</h2>
+        <Loader2 className="animate-spin h-8 w-8 mx-auto text-white/40 mb-4 sm:mb-6" />
+        <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-2">VERIFYING...</h2>
         <p className="text-sm text-white/40 font-mono-dm uppercase tracking-wider">
           {"// Please wait"}
         </p>
@@ -63,11 +63,11 @@ function VerifyEmailInner() {
 
     return (
       <div className="text-center fade-in">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-4 sm:mb-6">
           <XCircle size={32} className="text-red-400" />
         </div>
-        <h2 className="text-3xl font-black tracking-tight text-white mb-2">VERIFICATION FAILED.</h2>
-        <p className="text-sm text-white/40 mb-8 font-mono-dm uppercase tracking-wider">
+        <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-2">VERIFICATION FAILED.</h2>
+        <p className="text-sm text-white/40 mb-4 sm:mb-8 font-mono-dm uppercase tracking-wider">
           {message || "The link may be invalid or expired."}
         </p>
         <Link
@@ -82,16 +82,16 @@ function VerifyEmailInner() {
 
   return (
     <div className="text-center fade-in">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#6EE7B7]/10 mb-6">
+      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#6EE7B7]/10 mb-4 sm:mb-6">
         <CheckCircle size={32} className="text-[#6EE7B7]" />
       </div>
-      <h2 className="text-3xl font-black tracking-tight text-white mb-2">EMAIL VERIFIED!</h2>
-      <p className="text-sm text-white/40 mb-8 font-mono-dm uppercase tracking-wider">
+      <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-2">EMAIL VERIFIED!</h2>
+      <p className="text-sm text-white/40 mb-4 sm:mb-8 font-mono-dm uppercase tracking-wider">
         {"// You can now sign in to your account"}
       </p>
       <Link
         href={ROUTE_LOGIN}
-        className="btn-primary inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold uppercase tracking-wider transition-all"
+        className="btn-primary inline-flex items-center gap-2 rounded-xl px-4 sm:px-6 py-3.5 text-sm font-bold uppercase tracking-wider transition-all"
       >
         Sign in
       </Link>
@@ -103,8 +103,8 @@ export default function VerifyEmailPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4 font-syne grain-overlay">
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white/[0.02] shadow-2xl border border-white/[0.08] backdrop-blur-xl glow-green fade-in">
-        <div className="p-8">
-          <div className="flex items-center gap-2 mb-10">
+        <div className="p-4 sm:p-8">
+          <div className="flex items-center gap-2 mb-4 sm:mb-10">
             <div className="h-8 w-8 rounded-lg bg-[#6EE7B7] flex items-center justify-center">
               <Link2 size={16} className="text-[#0A0A0A] stroke-[2.5]" />
             </div>

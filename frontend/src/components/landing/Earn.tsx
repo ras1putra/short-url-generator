@@ -27,19 +27,19 @@ const EARN_FEATURES = [
 
 export default function Earn() {
   return (
-    <section id="earn" className="py-24 px-6 md:px-12 max-w-7xl mx-auto">
-      <div className="mb-16">
+    <section id="earn"className="py-12 sm:py-16 lg:py-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto">
+      <div className="mb-8 sm:mb-12 lg:mb-16">
         <p className="text-xs font-mono-dm mb-4 tracking-widest uppercase text-[#6EE7B7]">
           Earn crypto
         </p>
-        <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-none">
+        <h2 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tight leading-none">
           SHORT LINKS.<br />EARN TOKENS.
         </h2>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
         {EARN_FEATURES.map(({ icon, title, desc }) => (
-          <div key={title} className="p-6 rounded-2xl bg-white/[0.05] border border-white/[0.12]">
+          <div key={title} className="p-4 sm:p-6 rounded-2xl bg-white/[0.05] border border-white/[0.12]">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-5 bg-[#6EE7B7]/10 text-[#6EE7B7]">
               {icon}
             </div>

@@ -3,37 +3,14 @@
 import { useCallback } from "react";
 import { useConnection, useConnect, useConnectors } from "wagmi";
 import { useConfigStore } from "@/store/useConfigStore";
-import { CHAIN_NOT_ADDED } from "@/lib/constants";
 import { getEthereum } from "@/lib/ethereum";
+import { useChainCheck } from "@/hooks/useChainCheck";
 
 export function useWalletConnection() {
   const { address, isConnected, connector } = useConnection();
   const { mutateAsync, isPending: isConnecting } = useConnect();
   const connectors = useConnectors();
-
-  const ensureChain = useCallback(async () => {
-    const cfg = useConfigStore.getState().config;
-    const ethereum = getEthereum();
-    if (!ethereum || !cfg?.payment_chain) return;
-
-    const chainIdHex = `0x${cfg.payment_chain.chain_id.toString(16)}`;
-    try {
-      await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chainIdHex }] });
-    } catch (e: unknown) {
-      if ((e as { code?: number }).code === CHAIN_NOT_ADDED) {
-        await ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [{
-            chainId: chainIdHex,
-            chainName: cfg.payment_chain.chain_name,
-            rpcUrls: [cfg.payment_chain.rpc_url],
-            blockExplorerUrls: cfg.payment_chain.explorer_url ? [cfg.payment_chain.explorer_url] : undefined,
-            nativeCurrency: cfg.payment_chain.currency,
-          }],
-        });
-      }
-    }
-  }, []);
+  const { switchToCorrectChain } = useChainCheck();
 
   const addToken = useCallback(async () => {
     const cfg = useConfigStore.getState().config;
@@ -62,10 +39,10 @@ export function useWalletConnection() {
     if (!activeConnector) throw new Error("No wallet connector found");
     if (!isConnected) await mutateAsync({ connector: activeConnector });
 
-    await ensureChain();
+    await switchToCorrectChain();
 
     return activeConnector;
-  }, [isConnected, connector, mutateAsync, connectors, ensureChain]);
+  }, [isConnected, connector, mutateAsync, connectors, switchToCorrectChain]);
 
   return { connectWallet, addToken, isConnecting, isConnected, address };
 }

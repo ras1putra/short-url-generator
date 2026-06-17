@@ -34,7 +34,7 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
 
   if (error) {
     return (
-      <div className="rounded-2xl bg-red-900/20 p-6 border border-red-900/50 text-red-300">
+      <div className="rounded-2xl bg-red-900/20 p-4 sm:p-6 border border-red-900/50 text-red-300">
         {(error as AxiosError<ApiErrorResponse>)?.response?.data?.message || "Failed to load link details"}
       </div>
     );
@@ -42,7 +42,7 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
 
   if (!link) {
     return (
-      <div className="rounded-2xl bg-red-900/20 p-6 border border-red-900/50 text-red-300">
+      <div className="rounded-2xl bg-red-900/20 p-4 sm:p-6 border border-red-900/50 text-red-300">
         Link not found
       </div>
     );
@@ -64,8 +64,8 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
         <p className="mt-2 text-white/50 font-mono-dm text-sm">Detailed info for <span className="font-semibold text-[#6EE7B7]">/{slug}</span></p>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 mb-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 mb-8">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
           <h2 className="text-lg font-bold text-white/90">Info</h2>
           <button
             onClick={() => setIsEditing(!isEditing)}
@@ -85,7 +85,7 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div>
             <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Short Link</p>
             <div className="flex items-center">
@@ -103,7 +103,7 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
             <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Original URL</p>
             <div className="flex items-center">
               <span className="truncate text-white/60 text-sm mr-2">{link.original}</span>
-              <a href={link.original} target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-[#6EE7B7] flex-shrink-0 transition-colors">
+              <a href={link.original} target="_blank"rel="noopener noreferrer"className="text-white/30 hover:text-[#6EE7B7] flex-shrink-0 transition-colors">
                 <ExternalLink className="h-4 w-4" />
               </a>
             </div>
@@ -111,17 +111,17 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
 
           <div>
             <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Created</p>
-            <span className="text-white/60 text-sm">{format(new Date(link.created_at), 'MMM d, yyyy HH:mm')}</span>
+            <span className="text-white/60 text-sm">{format(new Date(link.created_at),'MMM d, yyyy HH:mm')}</span>
           </div>
 
           <div>
             <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">Expires</p>
-            <span className="text-white/60 text-sm">{link.expires_at ? format(new Date(link.expires_at), 'MMM d, yyyy HH:mm') : "Never"}</span>
+            <span className="text-white/60 text-sm">{link.expires_at ? format(new Date(link.expires_at),'MMM d, yyyy HH:mm') :"Never"}</span>
           </div>
 
           <div>
             <p className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono-dm mb-1">QR Code</p>
-            <a href={link.qr_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-[#6EE7B7] hover:text-[#A7F3D0] text-sm transition-colors">
+            <a href={link.qr_url} target="_blank"rel="noopener noreferrer"className="inline-flex items-center text-[#6EE7B7] hover:text-[#A7F3D0] text-sm transition-colors">
               <QrCode className="mr-1.5 h-4 w-4" />
               View QR Code
             </a>
@@ -143,7 +143,7 @@ export default function LinkDetailClient({ slug }: { slug: string }) {
       </div>
 
       <div className="mb-8">
-        <h2 className="text-xl font-bold text-white/90 mb-6">Statistics</h2>
+        <h2 className="text-xl font-bold text-white/90 mb-4 sm:mb-6">Statistics</h2>
         <LinkStatCharts slug={slug} />
       </div>
     </div>
@@ -209,7 +209,7 @@ function EditSection({ link, slug, onClose }: { link: LinkType; slug: string; on
 
   return (
     <>
-      <div className="border-t border-white/[0.06] my-6" />
+      <div className="border-t border-white/[0.06] my-4 sm:my-6" />
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -335,9 +335,9 @@ function EditSection({ link, slug, onClose }: { link: LinkType; slug: string; on
           <button
             type="submit"
             disabled={updateMutation.isPending}
-            className="btn-primary flex items-center justify-center px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary flex items-center justify-center px-4 sm:px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {updateMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : "Save Changes"}
+            {updateMutation.isPending ? <Loader2 className="animate-spin h-5 w-5"/> :"Save Changes"}
           </button>
         </div>
       </form>

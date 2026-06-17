@@ -20,17 +20,17 @@ const STEPS = [
 
 export default function HowItWorks() {
   return (
-    <section id="how" className="py-24 px-6 md:px-12 max-w-7xl mx-auto">
-      <div className="mb-16">
+    <section id="how"className="py-12 sm:py-16 lg:py-24 px-4 sm:px-6 md:px-12 max-w-7xl mx-auto">
+      <div className="mb-8 sm:mb-12 lg:mb-16">
         <p className="text-xs font-mono-dm mb-4 tracking-widest uppercase text-[#6EE7B7]">
           How it works
         </p>
-        <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-none">
+        <h2 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tight leading-none">
           THREE STEPS.<br />DONE.
         </h2>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
         {STEPS.map(({ step, title, desc }) => (
           <div key={step} className="relative p-8 rounded-2xl bg-white/[0.05] border border-white/[0.12]">
             <span className="font-black text-7xl absolute -top-4 right-6 text-white/[0.08] leading-none font-syne">

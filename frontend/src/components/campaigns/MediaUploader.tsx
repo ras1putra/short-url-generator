@@ -179,7 +179,7 @@ export function MediaUploader({ value, onChange, targetRatio, recommendedResolut
 
       {showCrop && cropFileSrc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-2xl rounded-2xl border border-white/[0.08] bg-[#0A0A0A] p-6">
+          <div className="relative w-full max-w-2xl rounded-2xl border border-white/[0.08] bg-[#0A0A0A] p-4 sm:p-6">
             <h3 className="text-lg font-bold text-white/90 mb-4 flex items-center gap-2">
               <CropIcon size={18} className="text-[#22D3EE]" />
               Crop Ad Creative
@@ -216,7 +216,7 @@ export function MediaUploader({ value, onChange, targetRatio, recommendedResolut
               <span className="text-xs font-mono text-white/40 w-8 text-right">{zoom.toFixed(2)}x</span>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-3 mt-4 sm:mt-6">
               <button
                 type="button"
                 onClick={handleCropCancel}

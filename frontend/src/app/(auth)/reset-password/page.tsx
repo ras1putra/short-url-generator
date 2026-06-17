@@ -52,16 +52,16 @@ function ResetPasswordFormInner() {
 
   return (
     <>
-      <h2 className="text-4xl font-black tracking-tight text-white mb-2">RESET PASSWORD.</h2>
-      <p className="text-sm text-white/40 mb-10 font-mono-dm uppercase tracking-wider">
+      <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-2">RESET PASSWORD.</h2>
+      <p className="text-sm text-white/40 mb-4 sm:mb-10 font-mono-dm uppercase tracking-wider">
         {"// Enter your new password"}
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
         <input type="hidden" {...register("token")} />
 
         <div>
-          <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm" htmlFor="password">
+          <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm"htmlFor="password">
             New Password
           </label>
           <div className="relative">
@@ -84,7 +84,7 @@ function ResetPasswordFormInner() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm" htmlFor="confirmPassword">
+          <label className="block text-xs font-bold text-[#6EE7B7] mb-2 uppercase tracking-widest font-mono-dm"htmlFor="confirmPassword">
             Confirm New Password
           </label>
           <div className="relative">
@@ -111,7 +111,7 @@ function ResetPasswordFormInner() {
           disabled={resetMutation.isPending}
           className="btn-primary cursor-pointer flex w-full justify-center items-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {resetMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : "Reset Password"}
+          {resetMutation.isPending ? <Loader2 className="animate-spin h-5 w-5"/> :"Reset Password"}
         </button>
       </form>
     </>
@@ -122,8 +122,8 @@ export default function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] p-4 font-syne grain-overlay">
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white/[0.02] shadow-2xl border border-white/[0.08] backdrop-blur-xl glow-green fade-in">
-        <div className="p-8">
-          <div className="flex items-center gap-2 mb-10">
+        <div className="p-4 sm:p-8">
+          <div className="flex items-center gap-2 mb-4 sm:mb-10">
             <div className="h-8 w-8 rounded-lg bg-[#6EE7B7] flex items-center justify-center">
               <Link2 size={16} className="text-[#0A0A0A] stroke-[2.5]" />
             </div>
@@ -135,7 +135,7 @@ export default function ResetPasswordPage() {
           </Suspense>
         </div>
 
-        <div className="bg-white/[0.02] px-8 py-5 border-t border-white/[0.05]">
+        <div className="bg-white/[0.02] px-4 sm:px-8 py-3 sm:py-5 border-t border-white/[0.05]">
           <p className="text-center text-sm text-white/40">
             Remember your password?{" "}
             <Link href={ROUTE_LOGIN} className="font-bold text-[#6EE7B7] hover:text-[#A7F3D0] transition-colors">

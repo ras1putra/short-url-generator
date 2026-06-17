@@ -15,6 +15,7 @@ export function useNFTPass() {
   const { data: appConfig, isLoading: isConfigLoading, isError } = useConfig();
   const tokenSymbol = appConfig?.token_symbol ?? "";
   const { address, isConnected, connectWallet, isConnecting } = useWalletConnection();
+  const targetChainId = appConfig?.payment_chain?.chain_id;
 
   const [isMintingProcess, setIsMintingProcess] = useState(false);
   const [currentTxHash, setCurrentTxHash] = useState<`0x${string}` | null>(null);
@@ -22,6 +23,7 @@ export function useNFTPass() {
 
   // Check if user already holds the NFT Pass
   const { data: nftBalance, refetch: refetchNFTBalance } = useReadContract({
+    chainId: targetChainId,
     address: appConfig?.contract_nft_pass as `0x${string}`,
     abi: NFT_PASS_ABI,
     functionName: "balanceOf",
@@ -33,6 +35,7 @@ export function useNFTPass() {
 
   // Read mintPrice from the contract dynamically
   const { data: rawMintPrice } = useReadContract({
+    chainId: targetChainId,
     address: appConfig?.contract_nft_pass as `0x${string}`,
     abi: NFT_PASS_ABI,
     functionName: "mintPrice",
@@ -46,6 +49,7 @@ export function useNFTPass() {
 
   // Check SURL Balance
   const { data: surlBalance, refetch: refetchSurlBalance } = useReadContract({
+    chainId: targetChainId,
     address: appConfig?.contract_token as `0x${string}`,
     abi: ERC20_ABI,
     functionName: "balanceOf",
@@ -57,6 +61,7 @@ export function useNFTPass() {
 
   // Check Allowance
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    chainId: targetChainId,
     address: appConfig?.contract_token as `0x${string}`,
     abi: ERC20_ABI,
     functionName: "allowance",

@@ -185,15 +185,15 @@ export default function WalletPage() {
       </div>
 
       {error && !isLoading ? (
-        <div className="rounded-2xl bg-red-900/20 p-6 border border-red-900/50 text-red-300">
+        <div className="rounded-2xl bg-red-900/20 p-4 sm:p-6 border border-red-900/50 text-red-300">
           {(error as AxiosError<ApiErrorResponse>)?.response?.data?.message || "Failed to load wallet"}
         </div>
       ) : null}
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {isAdvertiser ? (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 md:p-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 md:p-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 sm:mb-6">
               <div className="border-b md:border-b-0 md:border-r border-white/10 pb-4 md:pb-0 md:pr-6">
                 <p className="text-xs font-bold text-[#6EE7B7] uppercase tracking-widest font-mono-dm mb-1">Available Balance</p>
                 <p className="text-3xl font-black text-white">{formatBalance(wallet?.available ?? wallet?.balance ?? 0)} {symbol}</p>
@@ -210,13 +210,13 @@ export default function WalletPage() {
                 <p className="text-xs text-white/40 mt-1 font-mono-dm">{"// Sum of available and allocated"}</p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => {
                   setShowDeposit(!showDeposit);
                   setShowWithdraw(false);
                 }}
-                className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm tracking-wider uppercase cursor-pointer"
+                className="btn-primary flex items-center justify-center gap-2 px-4 py-2.5 text-sm tracking-wider uppercase cursor-pointer w-full sm:w-auto"
               >
                 <Plus size={16} />
                 Deposit Funds
@@ -226,7 +226,7 @@ export default function WalletPage() {
                   setShowWithdraw(!showWithdraw);
                   setShowDeposit(false);
                 }}
-                className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm tracking-wider uppercase cursor-pointer"
+                className="btn-primary flex items-center justify-center gap-2 px-4 py-2.5 text-sm tracking-wider uppercase cursor-pointer w-full sm:w-auto"
               >
                 <ArrowUpFromLine size={16} />
                 Withdraw Funds
@@ -234,7 +234,7 @@ export default function WalletPage() {
               {cfg?.contract_token && (
                 <button
                   onClick={() => addToken().catch((e) => toast.error(classifyWalletError(e)))}
-                  className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs tracking-wider uppercase cursor-pointer ml-auto"
+                  className="btn-primary flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs tracking-wider uppercase cursor-pointer sm:ml-auto w-full sm:w-auto"
                 >
                   <Plus className="h-3 w-3" />
                   Add {cfg.token_symbol}
@@ -251,11 +251,11 @@ export default function WalletPage() {
                       onClick={() => onChainBalance && setDepositAmount(onChainBalance)}
                       className="text-xs text-[#22D3EE] hover:text-[#67E8F9] transition-colors font-mono cursor-pointer flex items-center gap-0.5"
                     >
-                      Wallet Balance: {isBalanceFetching && onChainBalance === null ? "Loading..." : `${formatBalance(onChainBalance)} ${symbol}`} <span className="text-[10px] opacity-75">(MAX)</span>
+                      Wallet Balance: {isBalanceFetching && onChainBalance === null ? "Loading...": `${formatBalance(onChainBalance)} ${symbol}`} <span className="text-xs opacity-75">(MAX)</span>
                     </button>
                   )}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="number"
                     step="0.001"
@@ -269,7 +269,7 @@ export default function WalletPage() {
                   <button
                     onClick={handleDeposit}
                     disabled={depositStatus === "pending"}
-                    className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
+                    className="btn-primary flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 w-full sm:w-auto"
                   >
                     {depositStatus === "pending" ? (
                       <Loader2 className="animate-spin h-4 w-4" />
@@ -283,7 +283,7 @@ export default function WalletPage() {
             )}
             {showWithdraw && (
               <div className="mt-4 p-4 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 mb-2">
                   <span className="text-xs text-white/50">Withdraw {symbol} to Web3 Wallet</span>
                   <button
                     type="button"
@@ -294,10 +294,10 @@ export default function WalletPage() {
                     }}
                     className="text-xs text-[#6EE7B7] hover:text-[#34D399] transition-colors font-mono cursor-pointer flex items-center gap-0.5"
                   >
-                    Available: {formatBalance(wallet?.available ?? 0)} {symbol} <span className="text-[10px] opacity-75">(MAX)</span>
+                    Available: {formatBalance(wallet?.available ?? 0)} {symbol} <span className="text-xs opacity-75">(MAX)</span>
                   </button>
                 </div>
-                <div className="flex gap-3 mb-2">
+                <div className="flex flex-col sm:flex-row gap-3 mb-2">
                   <input
                     type="number"
                     step="0.001"
@@ -311,7 +311,7 @@ export default function WalletPage() {
                   <button
                     onClick={handleWithdraw}
                     disabled={withdrawStatus !== "idle" && withdrawStatus !== "success"}
-                    className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
+                    className="btn-primary flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 w-full sm:w-auto"
                   >
                     {withdrawStatus === "pending" ? (
                       <Loader2 className="animate-spin h-4 w-4" />
@@ -322,7 +322,7 @@ export default function WalletPage() {
                   </button>
                 </div>
                 {cfg?.platform_fee !== undefined && (
-                  <p className="text-[11px] text-white/40 font-mono-dm">
+                  <p className="text-sm text-white/40 font-mono-dm">
                     {"//"} Platform withdrawal fee: <span className="text-amber-400 font-semibold">{cfg.platform_fee} {symbol}</span> (deducted from balance, payout amount will be exact signed value)
                   </p>
                 )}
@@ -330,14 +330,14 @@ export default function WalletPage() {
             )}
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 md:p-8">
-            <div className="mb-6">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-6 md:p-8">
+            <div className="mb-4 sm:mb-6">
               <p className="text-xs font-bold text-[#6EE7B7] uppercase tracking-widest font-mono-dm mb-1">Balance</p>
               <p className="text-3xl font-black text-white">{formatBalance(wallet?.available ?? wallet?.balance ?? 0)} {symbol}</p>
               <p className="text-xs text-white/40 mt-1 font-mono-dm">{"// Available to withdraw"}</p>
             </div>
             <div className="mt-4 p-4 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 mb-2">
                 <span className="text-xs text-white/50">Withdraw {symbol} to Web3 Wallet</span>
                 <button
                   type="button"
@@ -348,10 +348,10 @@ export default function WalletPage() {
                   }}
                   className="text-xs text-[#6EE7B7] hover:text-[#34D399] transition-colors font-mono cursor-pointer flex items-center gap-0.5"
                 >
-                  Available: {formatBalance(wallet?.available ?? 0)} {symbol} <span className="text-[10px] opacity-75">(MAX)</span>
+                  Available: {formatBalance(wallet?.available ?? 0)} {symbol} <span className="text-xs opacity-75">(MAX)</span>
                 </button>
               </div>
-              <div className="flex gap-3 mb-2">
+              <div className="flex flex-col sm:flex-row gap-3 mb-2">
                 <input
                   type="number"
                   step="0.001"
@@ -365,7 +365,7 @@ export default function WalletPage() {
                 <button
                   onClick={handleWithdraw}
                   disabled={withdrawStatus !== "idle" && withdrawStatus !== "success"}
-                  className="btn-primary flex items-center gap-2 px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50"
+                  className="btn-primary flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 text-sm tracking-wider uppercase cursor-pointer disabled:opacity-50 w-full sm:w-auto"
                 >
                   {withdrawStatus === "pending" ? (
                     <Loader2 className="animate-spin h-4 w-4" />
@@ -376,7 +376,7 @@ export default function WalletPage() {
                 </button>
               </div>
               {cfg?.platform_fee !== undefined && (
-                <p className="text-[11px] text-white/40 font-mono-dm">
+                <p className="text-sm text-white/40 font-mono-dm">
                   {"//"} Platform withdrawal fee: <span className="text-amber-400 font-semibold">{cfg.platform_fee} {symbol}</span> (deducted from balance, payout amount will be exact signed value)
                 </p>
               )}
@@ -385,7 +385,7 @@ export default function WalletPage() {
         )}
 
         <div>
-          <h2 className="text-xl font-bold text-white/90 mb-6">Transaction History</h2>
+          <h2 className="text-xl font-bold text-white/90 mb-4 sm:mb-6">Transaction History</h2>
           <TransactionTable
             transactions={wallet?.transactions}
             confirmations={confirmations}

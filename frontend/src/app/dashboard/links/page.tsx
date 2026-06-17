@@ -27,7 +27,7 @@ export default function LinksPage() {
       </div>
 
       <div className="mt-12">
-        <h2 className="text-xl font-bold text-white/90 mb-6">Your Links</h2>
+        <h2 className="text-xl font-bold text-white/90 mb-4 sm:mb-6">Your Links</h2>
         <LinkTable />
       </div>
     </RequireRole>
