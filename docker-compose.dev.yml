@@ -216,6 +216,8 @@ services:
         npx hardhat run scripts/upload-assets.ts &&
         echo "Step 3: Deploying NFTPass..." &&
         npx hardhat run scripts/deploy-nft.ts --network localhost &&
+        echo "Step 4: Upgrading RewardToken to V2 (Votes)..." &&
+        npx hardhat run scripts/upgrade-v2-votes.ts --network localhost &&
         echo "" &&
         echo "=== Deployed Addresses ===" &&
         cat /shared/.web3.addresses &&

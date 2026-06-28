@@ -136,6 +136,19 @@ Then deploy the `NFTPass` contract:
 npx hardhat run scripts/deploy-nft.ts --network remote
 ```
 
+### 5. Upgrading RewardToken to V2 (Votes) in Production
+
+If you need to upgrade the already deployed `RewardToken` proxy to `RewardTokenV2` on a remote/production network:
+
+1. **Check Ownership**: Make sure the private key executing the upgrade transaction belongs to the current **owner** of the proxy contract (since `_authorizeUpgrade` checks `onlyOwner`). If the owner is a cold wallet or multi-sig, the upgrade proposal must be routed through that owner account.
+2. **Run the upgrade script**: Set the `PROXY_ADDRESS` env variable to your token proxy address and execute the upgrade script:
+
+```bash
+PROXY_ADDRESS=0xYOUR_DEPLOYED_PROXY_ADDRESS npx hardhat run scripts/upgrade-v2-votes.ts --network remote
+```
+
+This deploys the `RewardTokenV2` implementation and updates the proxy pointer, enabling voting and delegation capabilities.
+
 ---
 
 ## 🔗 Step 2: Basescan Verification & Proxy Linking

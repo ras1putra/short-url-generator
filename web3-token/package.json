@@ -13,6 +13,8 @@
     "upload-assets": "hardhat run scripts/upload-assets.ts",
     "upgrade": "hardhat run scripts/upgrade.ts",
     "upgrade:remote": "hardhat run scripts/upgrade.ts --network remote",
+    "upgrade-v2:local": "hardhat run scripts/upgrade-v2-votes.ts --network localhost",
+    "upgrade-v2:remote": "hardhat run scripts/upgrade-v2-votes.ts --network remote",
     "node": "hardhat node"
   },
   "devDependencies": {
