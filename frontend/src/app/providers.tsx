@@ -2,6 +2,8 @@
 
 import { ReactNode, useMemo } from "react";
 import { WagmiProvider } from "wagmi";
+import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
+import "@rainbow-me/rainbowkit/styles.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getWagmiConfig } from "@/lib/wagmi";
 import { useConfig } from "@/hooks/useConfig";
@@ -72,7 +74,9 @@ function WagmiAppWrapper({ children }: { children: ReactNode }) {
 
   return (
     <WagmiProvider config={wagmiConfig}>
-      {children}
+      <RainbowKitProvider theme={darkTheme()}>
+        {children}
+      </RainbowKitProvider>
     </WagmiProvider>
   );
 }

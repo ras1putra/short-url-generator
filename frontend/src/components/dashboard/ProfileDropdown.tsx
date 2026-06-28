@@ -23,7 +23,7 @@ export default function ProfileDropdown() {
 
   const { connectWallet, isConnecting, isConnected, address } = useWalletConnection();
   const { data: balanceData } = useBalance({ address });
-  const { mutate: disconnectWallet } = useDisconnect();
+  const { disconnect: disconnectWallet } = useDisconnect();
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

@@ -30,7 +30,7 @@ export default function FaucetPage() {
   const { data: historyData, isLoading: isHistoryLoading } = useFaucetHistory(historyPage, historyPerPage, historySearch || undefined, historySortBy, historySortDir);
   const history = historyData?.claims || [];
   const historyTotalPages = historyData?.total_pages || 1;
-  const { mutateAsync, isPending: isWritePending } = useWriteContract();
+  const { writeContractAsync, isPending: isWritePending } = useWriteContract();
   const [txHash, setTxHash] = useState<string | null>(null);
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -72,7 +72,7 @@ export default function FaucetPage() {
     try {
       const payload = await claimMutation.mutateAsync(address);
 
-      const hash = await mutateAsync({
+      const hash = await writeContractAsync({
         address: payload.faucet_addr as `0x${string}`,
         abi: FAUCET_ABI,
         functionName: "requestTokens",

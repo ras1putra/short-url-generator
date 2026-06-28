@@ -1,16 +1,13 @@
-"use client";
-
 import { useCallback } from "react";
-import { useConnection, useConnect, useConnectors } from "wagmi";
+import { useAccount, useConnect } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useConfigStore } from "@/store/useConfigStore";
 import { getEthereum } from "@/lib/ethereum";
-import { useChainCheck } from "@/hooks/useChainCheck";
 
 export function useWalletConnection() {
-  const { address, isConnected, connector } = useConnection();
-  const { mutateAsync, isPending: isConnecting } = useConnect();
-  const connectors = useConnectors();
-  const { switchToCorrectChain } = useChainCheck();
+  const { address, isConnected } = useAccount();
+  const { isPending: isConnecting } = useConnect();
+  const { openConnectModal } = useConnectModal();
 
   const addToken = useCallback(async () => {
     const cfg = useConfigStore.getState().config;
@@ -31,18 +28,10 @@ export function useWalletConnection() {
   }, []);
 
   const connectWallet = useCallback(async () => {
-    if (!getEthereum()) {
-      throw new Error("No wallet detected. Please install MetaMask or another wallet extension.");
+    if (openConnectModal) {
+      openConnectModal();
     }
-
-    const activeConnector = connector ?? connectors[0];
-    if (!activeConnector) throw new Error("No wallet connector found");
-    if (!isConnected) await mutateAsync({ connector: activeConnector });
-
-    await switchToCorrectChain();
-
-    return activeConnector;
-  }, [isConnected, connector, mutateAsync, connectors, switchToCorrectChain]);
+  }, [openConnectModal]);
 
   return { connectWallet, addToken, isConnecting, isConnected, address };
 }

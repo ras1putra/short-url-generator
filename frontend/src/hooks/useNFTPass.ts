@@ -71,7 +71,7 @@ export function useNFTPass() {
     },
   });
 
-  const { mutateAsync } = useWriteContract();
+  const { writeContractAsync } = useWriteContract();
 
   // Watch transaction completion
   const { isLoading: isTxWaiting } = useWaitForTransactionReceipt({
@@ -110,7 +110,7 @@ export function useNFTPass() {
       if (currentAllowance < price) {
         setPendingAction(ACTION_APPROVE);
         toast.info(`Approving ${tokenSymbol} spend for NFT Pass...`);
-        const hash = await mutateAsync({
+        const hash = await writeContractAsync({
           address: appConfig.contract_token as `0x${string}`,
           abi: ERC20_ABI,
           functionName: "approve",
@@ -123,7 +123,7 @@ export function useNFTPass() {
       // Mint
       setPendingAction(ACTION_MINT);
       toast.info("Minting your NFT Pass...");
-      const hash = await mutateAsync({
+      const hash = await writeContractAsync({
         address: appConfig.contract_nft_pass as `0x${string}`,
         abi: NFT_PASS_ABI,
         functionName: "mint",
